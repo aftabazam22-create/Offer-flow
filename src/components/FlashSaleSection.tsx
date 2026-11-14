@@ -57,56 +57,56 @@ export const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
   if (flashProducts.length === 0) return null;
 
   return (
-    <section className="bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 rounded-3xl p-5 sm:p-7 text-white shadow-xl overflow-hidden relative">
+    <section className="bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 text-white shadow-lg overflow-hidden relative">
       {/* Decorative Blur and Accent */}
-      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/15">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 bg-white/20 text-white text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full backdrop-blur-md">
-            <Flame className="w-3.5 h-3.5 fill-amber-300 text-amber-300 animate-bounce" />
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/15">
+        <div className="space-y-0.5">
+          <div className="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full backdrop-blur-md">
+            <Flame className="w-3 h-3 fill-amber-300 text-amber-300 animate-bounce" />
             <span>{config.discountHighlight || t('LIMITED TIME MEGA DEALS', 'সীমিত সময়ের মেগা অফার')}</span>
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">
+          <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white">
             {config.title}
           </h2>
-          {config.titleBn && <p className="text-xs sm:text-sm text-rose-100">{config.titleBn}</p>}
+          {config.titleBn && <p className="text-[11px] sm:text-xs text-rose-100">{config.titleBn}</p>}
         </div>
 
         {/* Real-time Countdown Timer */}
-        <div className="flex items-center gap-2 self-start md:self-auto bg-black/25 p-2 rounded-2xl backdrop-blur-md border border-white/10">
-          <Clock className="w-4 h-4 text-amber-300 ml-1" />
-          <span className="text-xs font-bold text-rose-100 mr-1">{t('Ends in:', 'বাকি:')}</span>
+        <div className="flex items-center gap-1.5 self-start md:self-auto bg-black/25 p-1.5 rounded-xl backdrop-blur-md border border-white/10">
+          <Clock className="w-3.5 h-3.5 text-amber-300 ml-1" />
+          <span className="text-[11px] font-bold text-rose-100 mr-0.5">{t('Ends:', 'বাকি:')}</span>
           
           <div className="flex items-center gap-1 text-center">
             {timeLeft.days > 0 && (
               <>
-                <div className="bg-white text-slate-900 rounded-xl px-2.5 py-1 min-w-[34px]">
-                  <span className="text-xs sm:text-sm font-black block leading-none">
+                <div className="bg-white text-slate-900 rounded-lg px-2 py-0.5 min-w-[28px]">
+                  <span className="text-xs font-black block leading-none">
                     {String(timeLeft.days).padStart(2, '0')}
                   </span>
                   <span className="text-[8px] font-bold text-slate-500 uppercase">D</span>
                 </div>
-                <span className="font-bold text-white">:</span>
+                <span className="font-bold text-white text-xs">:</span>
               </>
             )}
-            <div className="bg-white text-slate-900 rounded-xl px-2.5 py-1 min-w-[34px]">
-              <span className="text-xs sm:text-sm font-black block leading-none">
+            <div className="bg-white text-slate-900 rounded-lg px-2 py-0.5 min-w-[28px]">
+              <span className="text-xs font-black block leading-none">
                 {String(timeLeft.hours).padStart(2, '0')}
               </span>
               <span className="text-[8px] font-bold text-slate-500 uppercase">H</span>
             </div>
-            <span className="font-bold text-white">:</span>
-            <div className="bg-white text-slate-900 rounded-xl px-2.5 py-1 min-w-[34px]">
-              <span className="text-xs sm:text-sm font-black block leading-none">
+            <span className="font-bold text-white text-xs">:</span>
+            <div className="bg-white text-slate-900 rounded-lg px-2 py-0.5 min-w-[28px]">
+              <span className="text-xs font-black block leading-none">
                 {String(timeLeft.minutes).padStart(2, '0')}
               </span>
               <span className="text-[8px] font-bold text-slate-500 uppercase">M</span>
             </div>
-            <span className="font-bold text-white">:</span>
-            <div className="bg-white text-slate-900 rounded-xl px-2.5 py-1 min-w-[34px]">
-              <span className="text-xs sm:text-sm font-black block leading-none text-rose-600">
+            <span className="font-bold text-white text-xs">:</span>
+            <div className="bg-white text-slate-900 rounded-lg px-2 py-0.5 min-w-[28px]">
+              <span className="text-xs font-black block leading-none text-rose-600">
                 {String(timeLeft.seconds).padStart(2, '0')}
               </span>
               <span className="text-[8px] font-bold text-slate-500 uppercase">S</span>
@@ -116,7 +116,7 @@ export const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
       </div>
 
       {/* Flash Sale Product Grid */}
-      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 pt-6">
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 pt-4">
         {flashProducts.slice(0, 4).map((product) => (
           <div key={product.id} className="text-slate-900">
             <ProductCard product={product} onSelectProduct={onSelectProduct} />
@@ -125,10 +125,10 @@ export const FlashSaleSection: React.FC<FlashSaleSectionProps> = ({
       </div>
 
       {/* View All Button */}
-      <div className="relative z-10 pt-6 text-center">
+      <div className="relative z-10 pt-4 text-center">
         <button
           onClick={() => onNavigate('shop', 'isFlashSale=true')}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-full shadow-md transition-colors"
+          className="inline-flex items-center gap-1.5 px-5 py-2 bg-white text-rose-600 hover:bg-rose-50 text-[11px] sm:text-xs font-bold rounded-full shadow-sm transition-colors"
         >
           <span>{t('View All Flash Sale Deals', 'সকল ফ্ল্যাশ সেল অফার দেখুন')}</span>
           <ArrowRight className="w-3.5 h-3.5" />

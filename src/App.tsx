@@ -122,7 +122,7 @@ function MainContent() {
   const activeCategories = categories.filter((c) => c.isActive !== false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50/50 text-slate-800 font-sans antialiased selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen w-full overflow-x-hidden flex flex-col bg-slate-50/50 text-slate-800 font-sans antialiased selection:bg-rose-500 selection:text-white">
       {/* Global Header */}
       <Header
         currentView={currentView}
@@ -132,7 +132,7 @@ function MainContent() {
       />
 
       {/* Main Viewport Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {storeLoading ? (
           <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
             <div className="w-12 h-12 rounded-full border-4 border-rose-500 border-t-transparent animate-spin"></div>

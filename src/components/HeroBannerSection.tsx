@@ -41,7 +41,7 @@ export const HeroBannerSection: React.FC<HeroBannerProps> = ({ banners, onNaviga
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl min-h-[280px] sm:min-h-[360px] md:min-h-[420px] flex items-center">
+    <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-900 text-white shadow-lg min-h-[185px] sm:min-h-[250px] md:min-h-[310px] flex items-center">
       {/* Background Image with overlay gradient */}
       <div className="absolute inset-0 z-0">
         <img
@@ -53,39 +53,39 @@ export const HeroBannerSection: React.FC<HeroBannerProps> = ({ banners, onNaviga
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-2xl px-6 sm:px-10 md:px-14 py-8 space-y-4">
+      <div className="relative z-10 max-w-xl px-4 sm:px-8 md:px-12 py-5 sm:py-7 space-y-2.5 sm:space-y-3">
         {current.badge && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600/90 text-white text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-xs">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-600/90 text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-xs">
+            <Sparkles className="w-3 h-3" />
             <span>{current.badge}</span>
           </div>
         )}
 
-        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
+        <h1 className="text-lg sm:text-3xl md:text-4xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
           {current.title}
         </h1>
 
-        <p className="text-xs sm:text-sm md:text-base text-slate-200 line-clamp-2 sm:line-clamp-3 leading-relaxed max-w-lg">
+        <p className="text-[11px] sm:text-xs md:text-sm text-slate-200 line-clamp-2 leading-relaxed max-w-md">
           {current.subtitle}
         </p>
 
-        <div className="pt-2 flex flex-wrap items-center gap-3">
+        <div className="pt-1 flex flex-wrap items-center gap-2">
           <button
             onClick={handleAction}
-            className="flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-lg shadow-rose-600/30 transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-[11px] sm:text-xs font-bold rounded-xl shadow-md shadow-rose-600/30 transition-all"
           >
             <span>{current.buttonText || t('Shop Now', 'এখনই কিনুন')}</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
 
           <a
             href="https://wa.me/8801745329020"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold rounded-2xl backdrop-blur-md transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-semibold rounded-xl backdrop-blur-md transition-colors"
           >
-            <Zap className="w-4 h-4 text-emerald-400" />
-            <span>{t('Instant WhatsApp Order', 'হোয়াটসঅ্যাপ অর্ডার')}</span>
+            <Zap className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{t('WhatsApp Order', 'হোয়াটসঅ্যাপ অর্ডার')}</span>
           </a>
         </div>
       </div>

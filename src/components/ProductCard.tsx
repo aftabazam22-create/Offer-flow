@@ -75,46 +75,46 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
       </div>
 
       {/* Product Content Details */}
-      <div className="p-3.5 sm:p-4 flex flex-col flex-1">
+      <div className="p-2.5 sm:p-3.5 flex flex-col flex-1">
         {/* Brand & Category */}
-        <div className="text-[11px] font-medium text-slate-400 truncate mb-1">
+        <div className="text-[10px] font-medium text-slate-400 truncate mb-0.5">
           <span>{product.brand}</span>
-          <span className="mx-1.5">•</span>
+          <span className="mx-1">•</span>
           <span>{product.category}</span>
         </div>
 
         {/* Product Title */}
         <h3
           onClick={() => onSelectProduct(product)}
-          className="text-xs sm:text-sm font-bold text-slate-800 line-clamp-2 hover:text-rose-600 transition-colors cursor-pointer min-h-[36px] leading-snug"
+          className="text-[11px] sm:text-xs font-bold text-slate-800 line-clamp-2 hover:text-rose-600 transition-colors cursor-pointer min-h-[30px] leading-snug"
           title={product.name}
         >
           {product.name}
         </h3>
 
         {/* Rating */}
-        <div className="flex items-center gap-1.5 mt-2 mb-2.5 text-xs">
+        <div className="flex items-center gap-1 mt-1 mb-1.5 text-[11px]">
           <div className="flex items-center text-amber-500">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span className="font-bold ml-1 text-slate-800 text-[11px]">{product.rating}</span>
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <span className="font-bold ml-1 text-slate-800 text-[10px]">{product.rating}</span>
           </div>
           <span className="text-slate-400 text-[10px]">({product.reviewCount})</span>
         </div>
 
         {/* Pricing */}
-        <div className="flex items-baseline gap-2 mt-auto mb-3">
-          <span className="text-base sm:text-lg font-extrabold text-rose-600">
+        <div className="flex items-baseline gap-1.5 mt-auto mb-2">
+          <span className="text-sm sm:text-base font-extrabold text-rose-600">
             {formatPrice(product.discountPrice)}
           </span>
           {product.price > product.discountPrice && (
-            <span className="text-xs font-medium text-slate-400 line-through">
+            <span className="text-[10px] sm:text-xs font-medium text-slate-400 line-through">
               {formatPrice(product.price)}
             </span>
           )}
         </div>
 
         {/* Action Buttons: Cart & Buy Now */}
-        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+        <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100">
           <button
             type="button"
             onClick={(e) => {
@@ -122,9 +122,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
               addToCart(product, 1);
             }}
             disabled={!inStock}
-            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:border-rose-500 hover:text-rose-600 hover:bg-rose-50/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold border border-slate-200 text-slate-700 hover:border-rose-500 hover:text-rose-600 hover:bg-rose-50/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <ShoppingCart className="w-3.5 h-3.5" />
+            <ShoppingCart className="w-3 h-3 shrink-0" />
             <span className="truncate">{t('Cart', 'কার্ট')}</span>
           </button>
 
@@ -135,10 +135,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
               openBuyNow(product, 1);
             }}
             disabled={!inStock}
-            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 active:scale-95 shadow-xs hover:shadow-md hover:shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold bg-rose-600 text-white hover:bg-rose-700 active:scale-95 shadow-xs hover:shadow-md hover:shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <Zap className="w-3.5 h-3.5 fill-white" />
-            <span className="truncate">{t('Order Now', 'অর্ডার করুন')}</span>
+            <Zap className="w-3 h-3 fill-white shrink-0" />
+            <span className="truncate">{t('Order', 'অর্ডার')}</span>
           </button>
         </div>
       </div>
