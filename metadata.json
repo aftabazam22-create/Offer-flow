@@ -1,0 +1,6 @@
+{
+  "name": "Offer Flow",
+  "description": "Premium Bangladesh e-commerce marketplace with WhatsApp ordering, product catalog, flash sales, and full admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
