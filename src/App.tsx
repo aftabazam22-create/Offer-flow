@@ -19,6 +19,59 @@ import { AdminLoginModal } from './components/Admin/AdminLoginModal.js';
 import { AdminLayout } from './components/Admin/AdminLayout.js';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp.js';
 
+interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}
+
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: '' };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return {
+      hasError: true,
+      errorMessage: error?.message || 'Unexpected application error',
+    };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('Offer Flow ErrorBoundary caught:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+          <div className="max-w-md w-full bg-white rounded-3xl p-6 shadow-xl border border-slate-200 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 font-black text-xl flex items-center justify-center mx-auto">
+              OF
+            </div>
+            <h1 className="text-lg font-black text-slate-900">
+              Something went wrong
+            </h1>
+            <p className="text-xs text-slate-500 break-words">
+              {this.state.errorMessage}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm"
+            >
+              Reload Storefront
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function MainContent() {
   const {
     adminUser,
@@ -214,8 +267,10 @@ function MainContent() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <MainContent />
-    </StoreProvider>
+    <AppErrorBoundary>
+      <StoreProvider>
+        <MainContent />
+      </StoreProvider>
+    </AppErrorBoundary>
   );
 }
