@@ -13,6 +13,10 @@ import {
   Clock,
   Check,
   Package,
+  Tag,
+  MessageSquareText,
+  Palette,
+  AlertCircle,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext.js';
 import { api } from '../services/api.js';
@@ -69,12 +73,22 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
   } = useStore();
 
   const [singleQuantity, setSingleQuantity] = useState(1);
+  const [itemColors, setItemColors] = useState<Record<number, string>>({});
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [district, setDistrict] = useState('Dhaka');
   const [area, setArea] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+
+  // Coupon state directly inside checkout
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [orderCompleteData, setOrderCompleteData] = useState<{
     orderNumber: string;
@@ -83,6 +97,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
     email?: string;
     total: number;
     address: string;
+    customerNote?: string;
     waUrl?: string;
   } | null>(null);
 
@@ -90,6 +105,31 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
     if (isBuyNowModalOpen && checkoutPayload && checkoutPayload.items.length > 0) {
       setSingleQuantity(checkoutPayload.items[0].quantity || 1);
       setOrderCompleteData(null);
+      setCustomerNote('');
+
+      // Initialize per-item selected colors
+      const initialColors: Record<number, string> = {};
+      checkoutPayload.items.forEach((it, idx) => {
+        initialColors[idx] =
+          it.selectedColor || (it.product.colors && it.product.colors.length > 0 ? it.product.colors[0] : '');
+      });
+      setItemColors(initialColors);
+
+      // Initialize coupon if forwarded from CartDrawer
+      if (checkoutPayload.couponCode) {
+        setCouponInput(checkoutPayload.couponCode);
+        setAppliedCouponCode(checkoutPayload.couponCode);
+        setCouponDiscount(checkoutPayload.discount || 0);
+        setCouponMessage({
+          text: `${checkoutPayload.couponCode} applied!`,
+          isError: false,
+        });
+      } else {
+        setCouponInput('');
+        setAppliedCouponCode(null);
+        setCouponDiscount(0);
+        setCouponMessage(null);
+      }
 
       // Auto-fill from signed-in user's profile/auth when opening checkout
       if (firebaseUser || userProfile) {
@@ -124,7 +164,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
     (sum, item) => sum + item.product.discountPrice * item.quantity,
     0
   );
-  const discount = Math.min(subtotal, checkoutPayload.discount || 0);
+  const discount = Math.min(subtotal, couponDiscount);
   const deliveryCharge =
     district.toLowerCase() === 'dhaka'
       ? settings?.deliveryChargeInsideDhaka ?? 60
@@ -135,13 +175,61 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
   const grandTotal = Math.max(0, subtotal - discount + finalDeliveryCharge);
   const totalQty = orderItems.reduce((sum, i) => sum + i.quantity, 0);
 
-  const handleQuantityChange = (delta: number) => {
+  const handleQuantityChange = async (delta: number) => {
     if (!isSingleBuyNow) return;
     const maxStock = checkoutPayload.items[0].product.stock;
     const newQ = singleQuantity + delta;
     if (newQ >= 1 && newQ <= maxStock) {
       setSingleQuantity(newQ);
+      if (appliedCouponCode) {
+        const nextSub = checkoutPayload.items[0].product.discountPrice * newQ;
+        try {
+          const res = await api.validateCoupon(appliedCouponCode, nextSub);
+          if (res.valid) {
+            setCouponDiscount(res.discount);
+            setCouponMessage({ text: res.message, isError: false });
+          } else {
+            setCouponDiscount(0);
+            setAppliedCouponCode(null);
+            setCouponMessage({ text: res.message, isError: true });
+          }
+        } catch {}
+      }
     }
+  };
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setValidatingCoupon(true);
+    setCouponMessage(null);
+    try {
+      const res = await api.validateCoupon(code, subtotal);
+      if (res.valid) {
+        setCouponDiscount(res.discount);
+        setAppliedCouponCode(code.toUpperCase());
+        setCouponMessage({ text: res.message, isError: false });
+        showToast(t('Coupon applied successfully!', 'কুপন কোড প্রয়োগ হয়েছে!'));
+      } else {
+        setCouponDiscount(0);
+        setAppliedCouponCode(null);
+        setCouponMessage({ text: res.message, isError: true });
+      }
+    } catch {
+      setCouponMessage({
+        text: t('Could not verify coupon code', 'কুপন যাচাই করা যায়নি'),
+        isError: true,
+      });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCouponCode(null);
+    setCouponDiscount(0);
+    setCouponInput('');
+    setCouponMessage(null);
   };
 
   const handleDirectOrder = async (e: React.FormEvent) => {
@@ -178,6 +266,8 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
       ? targetWhatsAppNumber
       : `88${targetWhatsAppNumber}`;
 
+    const cleanNote = customerNote.trim();
+
     try {
       const order = await api.createOrder({
         customerName: customerName.trim(),
@@ -186,7 +276,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
         address: fullAddress,
         district,
         area: area.trim(),
-        items: orderItems.map((it) => ({
+        items: orderItems.map((it, idx) => ({
           productId: it.product.id,
           productName: it.product.name,
           price: it.product.discountPrice,
@@ -194,13 +284,15 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
           quantity: it.quantity,
           image: it.product.images[0] || '',
           sku: it.product.sku,
+          selectedColor: (itemColors[idx] ?? it.selectedColor ?? '').trim() || undefined,
         })),
         subtotal,
         discount,
         deliveryFee: finalDeliveryCharge,
         total: grandTotal,
-        couponCode: checkoutPayload.couponCode,
+        couponCode: appliedCouponCode || undefined,
         paymentMethod: 'cash_on_delivery',
+        customerNote: cleanNote || undefined,
         internalNotes: email.trim()
           ? `Customer email: ${email.trim()}`
           : 'Direct order with Cash on Delivery.',
@@ -234,6 +326,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
         email: email.trim() || undefined,
         total: grandTotal,
         address: fullAddress,
+        customerNote: cleanNote || undefined,
         waUrl,
       });
 
@@ -322,6 +415,14 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
                   {orderCompleteData.address}
                 </span>
               </div>
+              {orderCompleteData.customerNote && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-500">{t('Your Note:', 'আপনার নোট:')}</span>
+                  <span className="font-medium text-slate-800 text-right max-w-[220px]">
+                    {orderCompleteData.customerNote}
+                  </span>
+                </div>
+              )}
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
                 <span className="text-slate-500 font-bold">
                   {t('Total Payable (COD):', 'মোট প্রদেয় (ক্যাশ অন ডেলিভারি):')}
@@ -381,62 +482,127 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
         ) : (
           // Order Form
           <form onSubmit={handleDirectOrder} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
-            {/* Items Summary */}
-            <div className="space-y-2">
-              {orderItems.map((it) => (
-                <div
-                  key={it.product.id}
-                  className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100"
-                >
-                  <img
-                    src={it.product.images[0]}
-                    alt={it.product.name}
-                    className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
-                      {it.product.name}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm font-extrabold text-rose-600">
-                        {formatPrice(it.product.discountPrice)}
-                      </span>
-                      {it.product.price > it.product.discountPrice && (
-                        <span className="text-xs text-slate-400 line-through">
-                          {formatPrice(it.product.price)}
+            {/* Items Summary + Per-Item Color Selector */}
+            <div className="space-y-2.5">
+              {orderItems.map((it, idx) => {
+                const productColors =
+                  it.product.colors && it.product.colors.length > 0 ? it.product.colors : [];
+                const activeColor = itemColors[idx] ?? it.selectedColor ?? '';
+                const quickOptions =
+                  productColors.length > 0 ? productColors : ['Black', 'White', 'Blue', 'Red'];
+
+                return (
+                  <div
+                    key={`${it.product.id}-${idx}`}
+                    className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={it.product.images[0]}
+                        alt={it.product.name}
+                        className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
+                          {it.product.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm font-extrabold text-rose-600">
+                            {formatPrice(it.product.discountPrice)}
+                          </span>
+                          {it.product.price > it.product.discountPrice && (
+                            <span className="text-xs text-slate-400 line-through">
+                              {formatPrice(it.product.price)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500">
+                          SKU: {it.product.sku} • Qty: {it.quantity}
+                          {activeColor ? ` • ${activeColor}` : ''}
                         </span>
+                      </div>
+
+                      {isSingleBuyNow && (
+                        <div className="flex items-center border border-slate-200 rounded-xl bg-white p-1">
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(-1)}
+                            disabled={singleQuantity <= 1}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-8 text-center text-xs font-bold text-slate-800">
+                            {singleQuantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(1)}
+                            disabled={singleQuantity >= it.product.stock}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500">
-                      SKU: {it.product.sku} • Qty: {it.quantity}
-                    </span>
-                  </div>
 
-                  {isSingleBuyNow && (
-                    <div className="flex items-center border border-slate-200 rounded-xl bg-white p-1">
-                      <button
-                        type="button"
-                        onClick={() => handleQuantityChange(-1)}
-                        disabled={singleQuantity <= 1}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-8 text-center text-xs font-bold text-slate-800">
-                        {singleQuantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleQuantityChange(1)}
-                        disabled={singleQuantity >= it.product.stock}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
+                    {/* Color Selection Row */}
+                    <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-700 inline-flex items-center gap-1">
+                          <Palette className="w-3 h-3 text-rose-500" />
+                          <span>
+                            {productColors.length > 0
+                              ? t('Select Color:', 'রঙ নির্বাচন করুন:')
+                              : t('Select / Type Color (Optional):', 'রঙ নির্বাচন করুন (অপশনাল):')}
+                          </span>
+                        </span>
+                        {activeColor && (
+                          <span className="font-bold text-rose-600">{activeColor}</span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {quickOptions.map((c) => {
+                          const isSelected = activeColor.toLowerCase() === c.toLowerCase();
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() =>
+                                setItemColors((prev) => ({
+                                  ...prev,
+                                  [idx]: isSelected && productColors.length === 0 ? '' : c,
+                                }))
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                                isSelected
+                                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-rose-400'
+                              }`}
+                            >
+                              {c}
+                            </button>
+                          );
+                        })}
+
+                        {productColors.length === 0 && (
+                          <input
+                            type="text"
+                            value={activeColor}
+                            onChange={(e) =>
+                              setItemColors((prev) => ({ ...prev, [idx]: e.target.value }))
+                            }
+                            placeholder={t('Custom color...', 'নিজে রঙ লিখুন...')}
+                            className="flex-1 min-w-[110px] px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-800 focus:outline-hidden focus:border-rose-500"
+                          />
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Input Fields */}
@@ -542,6 +708,82 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
               </div>
+
+              {/* Coupon Code Box */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{t('Have a Coupon Code?', 'কুপন কোড আছে? (অপশনাল)')}</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                    placeholder={t('Enter coupon (e.g. OFFERFLOW10)', 'কুপন কোড লিখুন (যেমন: OFFERFLOW10)')}
+                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs uppercase text-slate-800 focus:outline-hidden focus:border-rose-500"
+                  />
+                  {appliedCouponCode ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold"
+                    >
+                      {t('Remove', 'বাতিল')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={validatingCoupon || !couponInput.trim()}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                    >
+                      {validatingCoupon ? '...' : t('Apply', 'প্রয়োগ')}
+                    </button>
+                  )}
+                </div>
+                {couponMessage && (
+                  <div
+                    className={`text-[11px] font-medium flex items-center gap-1.5 ${
+                      couponMessage.isError ? 'text-red-600' : 'text-emerald-600'
+                    }`}
+                  >
+                    {couponMessage.isError ? (
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    )}
+                    <span>{couponMessage.text}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Customer Order Note (Bottom of Form) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5">
+                    <MessageSquareText className="w-3.5 h-3.5 text-rose-500" />
+                    <span>{t('Order Note / Instructions (Optional)', 'অর্ডার নোট / বিশেষ কিছু লিখুন (অপশনাল)')}</span>
+                  </span>
+                </label>
+                <textarea
+                  rows={2}
+                  maxLength={500}
+                  value={customerNote}
+                  onChange={(e) => setCustomerNote(e.target.value)}
+                  placeholder={t(
+                    'Any color/size note, delivery instructions, or special message...',
+                    'রঙ/সাইজ, ডেলিভারির সময় বা অন্য কোনো বিশেষ নোট বা সমস্যা থাকলে এখানে লিখুন...'
+                  )}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
             </div>
 
             {/* Pricing Breakdown */}
@@ -556,7 +798,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
                 <div className="flex justify-between text-emerald-600 font-medium">
                   <span>
                     {t('Coupon Discount', 'কুপন ডিসকাউন্ট')}{' '}
-                    {checkoutPayload.couponCode ? `(${checkoutPayload.couponCode})` : ''}:
+                    {appliedCouponCode ? `(${appliedCouponCode})` : ''}:
                   </span>
                   <span>-{formatPrice(discount)}</span>
                 </div>

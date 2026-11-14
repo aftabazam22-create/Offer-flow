@@ -137,7 +137,7 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
           ) : (
             cart.map((item) => (
               <div
-                key={item.product.id}
+                key={`${item.product.id}__${item.selectedColor || ''}`}
                 className="flex items-center gap-3 p-3 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 transition-colors"
               >
                 <img
@@ -149,8 +149,15 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                   <h4 className="text-xs font-bold text-slate-800 truncate" title={item.product.name}>
                     {item.product.name}
                   </h4>
-                  <div className="text-xs font-extrabold text-rose-600 mt-0.5">
-                    {formatPrice(item.product.discountPrice)}
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-extrabold text-rose-600">
+                      {formatPrice(item.product.discountPrice)}
+                    </span>
+                    {item.selectedColor && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-bold">
+                        {item.selectedColor}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-400">SKU: {item.product.sku}</div>
 
@@ -158,7 +165,9 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex items-center border border-slate-200 rounded-lg bg-white">
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
+                        onClick={() =>
+                          updateCartQuantity(item.product.id, item.quantity - 1, item.selectedColor)
+                        }
                         className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-l-lg"
                       >
                         <Minus className="w-3 h-3" />
@@ -167,7 +176,9 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
+                        onClick={() =>
+                          updateCartQuantity(item.product.id, item.quantity + 1, item.selectedColor)
+                        }
                         disabled={item.quantity >= item.product.stock}
                         className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-r-lg disabled:opacity-40"
                       >
@@ -178,7 +189,7 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                 </div>
 
                 <button
-                  onClick={() => removeFromCart(item.product.id)}
+                  onClick={() => removeFromCart(item.product.id, item.selectedColor)}
                   className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
                   title="Remove item"
                 >

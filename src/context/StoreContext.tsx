@@ -72,9 +72,9 @@ interface StoreContextType {
   addMyOrderNumber: (orderNumber: string) => void;
   cartCount: number;
   wishlistCount: number;
-  addToCart: (product: Product, quantity?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
+  addToCart: (product: Product, quantity?: number, selectedColor?: string) => void;
+  removeFromCart: (productId: string, selectedColor?: string) => void;
+  updateCartQuantity: (productId: string, quantity: number, selectedColor?: string) => void;
   clearCart: () => void;
   toggleWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
@@ -83,7 +83,7 @@ interface StoreContextType {
   isBuyNowModalOpen: boolean;
   setIsBuyNowModalOpen: (open: boolean) => void;
   checkoutPayload: CheckoutPayload | null;
-  openBuyNow: (product: Product, quantity?: number) => void;
+  openBuyNow: (product: Product, quantity?: number, selectedColor?: string) => void;
   openCartCheckout: (items: CartItem[], couponCode?: string, discount?: number) => void;
   formatPrice: (amount: number) => string;
   t: (en: string, bn: string) => string;
@@ -333,34 +333,61 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addToCart = (product: Product, quantity = 1) => {
+  const addToCart = (product: Product, quantity = 1, selectedColor?: string) => {
+    const resolvedColor = selectedColor || (product.colors && product.colors.length > 0 ? product.colors[0] : undefined);
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find(
+        (item) =>
+          item.product.id === product.id &&
+          (item.selectedColor || '') === (resolvedColor || '')
+      );
       if (existing) {
         return prev.map((item) =>
-          item.product.id === product.id
+          item.product.id === product.id &&
+          (item.selectedColor || '') === (resolvedColor || '')
             ? { ...item, quantity: Math.min(product.stock, item.quantity + quantity) }
             : item
         );
       }
-      return [...prev, { product, quantity: Math.min(product.stock, quantity) }];
+      return [
+        ...prev,
+        {
+          product,
+          quantity: Math.min(product.stock, quantity),
+          selectedColor: resolvedColor,
+        },
+      ];
     });
-    showToast(language === 'bn' ? `${product.name} কার্টে যোগ করা হয়েছে` : `Added ${product.name} to cart`);
+    const colorSuffix = resolvedColor ? ` (${resolvedColor})` : '';
+    showToast(
+      language === 'bn'
+        ? `${product.name}${colorSuffix} কার্টে যোগ করা হয়েছে`
+        : `Added ${product.name}${colorSuffix} to cart`
+    );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = (productId: string, selectedColor?: string) => {
+    setCart((prev) =>
+      prev.filter((item) => {
+        if (item.product.id !== productId) return true;
+        if (selectedColor === undefined) return false;
+        return (item.selectedColor || '') !== (selectedColor || '');
+      })
+    );
   };
 
-  const updateCartQuantity = (productId: string, quantity: number) => {
+  const updateCartQuantity = (productId: string, quantity: number, selectedColor?: string) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, selectedColor);
       return;
     }
     setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      )
+      prev.map((item) => {
+        const match =
+          item.product.id === productId &&
+          (selectedColor === undefined || (item.selectedColor || '') === (selectedColor || ''));
+        return match ? { ...item, quantity } : item;
+      })
     );
   };
 
@@ -383,9 +410,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const isInWishlist = (productId: string) => wishlist.includes(productId);
 
-  const openBuyNow = (product: Product, quantity = 1) => {
+  const openBuyNow = (product: Product, quantity = 1, selectedColor?: string) => {
+    const resolvedColor =
+      selectedColor || (product.colors && product.colors.length > 0 ? product.colors[0] : undefined);
     setCheckoutPayload({
-      items: [{ product, quantity }],
+      items: [{ product, quantity, selectedColor: resolvedColor }],
       fromCart: false,
     });
     setIsBuyNowModalOpen(true);

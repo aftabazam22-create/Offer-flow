@@ -47,7 +47,7 @@ service cloud.firestore {
         data.keys().hasOnly([
           'id', 'name', 'nameBn', 'images', 'description', 'shortDescription',
           'price', 'discountPrice', 'discountPercentage', 'stock', 'sku',
-          'category', 'subcategory', 'brand', 'tags', 'isFeatured',
+          'category', 'subcategory', 'brand', 'tags', 'colors', 'isFeatured',
           'isNewArrival', 'isFlashSale', 'specifications', 'videoUrl',
           'deliveryInfo', 'returnInfo', 'rating', 'reviewCount', 'status',
           'createdAt', 'updatedAt'
@@ -68,6 +68,7 @@ service cloud.firestore {
         (!('subcategory' in data) || (data.subcategory is string && data.subcategory.size() <= 120)) &&
         (!('brand' in data) || (data.brand is string && data.brand.size() <= 120)) &&
         (!('tags' in data) || (data.tags is list && data.tags.size() <= 20)) &&
+        (!('colors' in data) || (data.colors is list && data.colors.size() <= 20)) &&
         (!('isFeatured' in data) || data.isFeatured is bool) &&
         (!('isNewArrival' in data) || data.isNewArrival is bool) &&
         (!('isFlashSale' in data) || data.isFlashSale is bool) &&
@@ -188,7 +189,7 @@ service cloud.firestore {
           'id', 'orderNumber', 'userId', 'customerName', 'phone', 'email',
           'address', 'district', 'area', 'items', 'subtotal', 'discount',
           'deliveryFee', 'total', 'couponCode', 'status', 'paymentMethod',
-          'internalNotes', 'statusNote', 'createdAt', 'updatedAt'
+          'internalNotes', 'customerNote', 'statusNote', 'createdAt', 'updatedAt'
         ]) &&
         isValidId(data.id) &&
         isValidId(data.orderNumber) &&
@@ -209,6 +210,7 @@ service cloud.firestore {
         data.status in ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'] &&
         data.paymentMethod in ['cash_on_delivery', 'whatsapp_cod'] &&
         (!('internalNotes' in data) || (data.internalNotes is string && data.internalNotes.size() <= 1000)) &&
+        (!('customerNote' in data) || (data.customerNote is string && data.customerNote.size() <= 1000)) &&
         (!('statusNote' in data) || (data.statusNote is string && data.statusNote.size() <= 500)) &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
@@ -219,7 +221,7 @@ service cloud.firestore {
         data.keys().hasOnly([
           'orderNumber', 'orderId', 'status', 'statusNote', 'items',
           'subtotal', 'discount', 'deliveryFee', 'total', 'district',
-          'paymentMethod', 'phoneLast4', 'createdAt', 'updatedAt'
+          'paymentMethod', 'phoneLast4', 'customerNote', 'createdAt', 'updatedAt'
         ]) &&
         isValidId(data.orderNumber) &&
         isValidId(data.orderId) &&
@@ -234,6 +236,7 @@ service cloud.firestore {
         data.district is string && data.district.size() >= 1 && data.district.size() <= 100 &&
         data.paymentMethod in ['cash_on_delivery', 'whatsapp_cod'] &&
         (!('phoneLast4' in data) || (data.phoneLast4 is string && data.phoneLast4.size() <= 4)) &&
+        (!('customerNote' in data) || (data.customerNote is string && data.customerNote.size() <= 1000)) &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }

@@ -49,6 +49,7 @@ import {
   SEED_FLASH_SALE,
   SEED_SETTINGS,
 } from '../data/seedData.js';
+import { shrinkImageDataUrl } from '../utils/imageUtils.js';
 
 const MY_ORDERS_STORAGE_KEY = 'offer_flow_my_orders';
 
@@ -103,6 +104,7 @@ function normalizeProduct(raw: Record<string, unknown>, id: string): Product {
     subcategory: (raw.subcategory as string) || '',
     brand: (raw.brand as string) || 'Offer Flow',
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    colors: Array.isArray(raw.colors) ? (raw.colors as string[]).filter((c) => typeof c === 'string' && c.trim()) : [],
     isFeatured: Boolean(raw.isFeatured),
     isNewArrival: Boolean(raw.isNewArrival),
     isFlashSale: Boolean(raw.isFlashSale),
@@ -215,6 +217,7 @@ function normalizeOrder(raw: Record<string, unknown>, id: string): Order {
     status: (raw.status as Order['status']) || 'pending',
     paymentMethod: raw.paymentMethod === 'whatsapp_cod' ? 'whatsapp_cod' : 'cash_on_delivery',
     internalNotes: (raw.internalNotes as string) || '',
+    customerNote: (raw.customerNote as string) || '',
     statusNote: (raw.statusNote as string) || '',
     createdAt: toIsoString(raw.createdAt),
     updatedAt: toIsoString(raw.updatedAt),
@@ -235,6 +238,7 @@ function normalizeOrderTracking(raw: Record<string, unknown>): OrderTracking {
     district: (raw.district as string) || 'Dhaka',
     paymentMethod: raw.paymentMethod === 'whatsapp_cod' ? 'whatsapp_cod' : 'cash_on_delivery',
     phoneLast4: (raw.phoneLast4 as string) || '',
+    customerNote: (raw.customerNote as string) || '',
     createdAt: toIsoString(raw.createdAt),
     updatedAt: toIsoString(raw.updatedAt),
   };
@@ -505,6 +509,9 @@ export const api = {
       subcategory: (data.subcategory || '').trim().slice(0, 120),
       brand: (data.brand || 'Offer Flow').trim().slice(0, 120),
       tags: Array.isArray(data.tags) ? data.tags.slice(0, 20) : [],
+      colors: Array.isArray(data.colors)
+        ? data.colors.map((c) => String(c).trim().slice(0, 50)).filter(Boolean).slice(0, 20)
+        : [],
       isFeatured: Boolean(data.isFeatured),
       isNewArrival: data.isNewArrival !== false,
       isFlashSale: Boolean(data.isFlashSale),
@@ -554,6 +561,10 @@ export const api = {
       subcategory: data.subcategory !== undefined ? data.subcategory.trim().slice(0, 120) : undefined,
       brand: data.brand !== undefined ? data.brand.trim().slice(0, 120) : undefined,
       tags: data.tags !== undefined ? data.tags.slice(0, 20) : undefined,
+      colors:
+        data.colors !== undefined
+          ? data.colors.map((c) => String(c).trim().slice(0, 50)).filter(Boolean).slice(0, 20)
+          : undefined,
       isFeatured: data.isFeatured,
       isNewArrival: data.isNewArrival,
       isFlashSale: data.isFlashSale,
@@ -909,6 +920,7 @@ export const api = {
     couponCode?: string;
     paymentMethod?: Order['paymentMethod'];
     internalNotes?: string;
+    customerNote?: string;
   }): Promise<Order> {
     const orderId = makeId('ord');
     const year = new Date().getFullYear();
@@ -918,16 +930,26 @@ export const api = {
     const cleanPhone = data.phone.trim();
     const phoneLast4 = cleanPhone.slice(-4);
 
-    // Strip potential huge base64 thumbnails from order items so batch doc is always compact
-    const compactItems = data.items.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      price: Number(item.price) || 0,
-      originalPrice: Number(item.originalPrice ?? item.price) || 0,
-      quantity: Math.max(1, Number(item.quantity) || 1),
-      image: item.image && item.image.length < 1500 ? item.image : '',
-      sku: item.sku || '',
-    }));
+    // Shrink uploaded data URLs into lightweight thumbnails (~10-25KB) while preserving HTTPS image URLs
+    const compactItems = await Promise.all(
+      data.items.map(async (item) => {
+        const thumb = await shrinkImageDataUrl(item.image || '', 180, 26000);
+        return stripUndefined({
+          productId: item.productId,
+          productName: item.productName,
+          price: Number(item.price) || 0,
+          originalPrice: Number(item.originalPrice ?? item.price) || 0,
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          image: thumb,
+          sku: item.sku || '',
+          selectedColor: item.selectedColor?.trim() ? item.selectedColor.trim().slice(0, 60) : undefined,
+        });
+      })
+    );
+
+    const cleanCustomerNote = data.customerNote?.trim()
+      ? data.customerNote.trim().slice(0, 1000)
+      : undefined;
 
     const orderPayload = stripUndefined({
       id: orderId,
@@ -948,6 +970,7 @@ export const api = {
       status: 'pending' as const,
       paymentMethod: (data.paymentMethod || 'cash_on_delivery') as Order['paymentMethod'],
       internalNotes: data.internalNotes?.trim() ? data.internalNotes.trim().slice(0, 1000) : undefined,
+      customerNote: cleanCustomerNote,
       statusNote: 'অর্ডারটি গ্রহণ করা হয়েছে। কনফার্মেশনের জন্য অপেক্ষমান।',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -966,6 +989,7 @@ export const api = {
       district: (data.district || 'Dhaka').trim().slice(0, 100),
       paymentMethod: (data.paymentMethod || 'cash_on_delivery') as Order['paymentMethod'],
       phoneLast4,
+      customerNote: cleanCustomerNote,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

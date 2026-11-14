@@ -49,6 +49,7 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'reviews' | 'delivery'>('desc');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -62,6 +63,7 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
   useEffect(() => {
     setActiveImageIndex(0);
     setQuantity(1);
+    setSelectedColor(product.colors && product.colors.length > 0 ? product.colors[0] : '');
     loadReviews();
   }, [product.id]);
 
@@ -254,8 +256,40 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
             </p>
           </div>
 
-          {/* Quantity and Actions */}
+          {/* Color, Quantity and Actions */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
+            {product.colors && product.colors.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-slate-700">
+                    {t('Select Color:', 'রঙ নির্বাচন করুন:')}
+                  </span>
+                  {selectedColor && (
+                    <span className="font-extrabold text-rose-600">{selectedColor}</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {product.colors.map((color) => {
+                    const active = selectedColor === color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setSelectedColor(color)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          active
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs ring-2 ring-rose-500/20'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-rose-400'
+                        }`}
+                      >
+                        {color}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-slate-700">{t('Quantity:', 'পরিমাণ:')}</span>
               <div className="flex items-center border border-slate-200 rounded-xl bg-white p-1">
@@ -283,7 +317,7 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => addToCart(product, quantity)}
+                onClick={() => addToCart(product, quantity, selectedColor || undefined)}
                 disabled={!inStock}
                 className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-bold border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white disabled:opacity-40 transition-all"
               >
@@ -293,7 +327,7 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
 
               <button
                 type="button"
-                onClick={() => openBuyNow(product, quantity)}
+                onClick={() => openBuyNow(product, quantity, selectedColor || undefined)}
                 disabled={!inStock}
                 className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25 active:scale-[0.99] disabled:opacity-40 transition-all"
               >

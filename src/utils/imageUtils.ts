@@ -70,3 +70,65 @@ export const compressImageFile = (
     reader.readAsDataURL(file);
   });
 };
+
+/**
+ * Shrinks a data:image URL into a lightweight thumbnail safe for storing inside Order documents.
+ */
+export const shrinkImageDataUrl = (
+  src: string,
+  maxSize = 180,
+  maxBytes = 28000
+): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!src) {
+      resolve('');
+      return;
+    }
+    if (!src.startsWith('data:image/')) {
+      resolve(src.length <= 2000 ? src : '');
+      return;
+    }
+    if (src.length <= maxBytes) {
+      resolve(src);
+      return;
+    }
+
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(src.length <= 120000 ? src : '');
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      let quality = 0.7;
+      let out = canvas.toDataURL('image/jpeg', quality);
+      while (out.length > maxBytes && quality > 0.25) {
+        quality -= 0.12;
+        out = canvas.toDataURL('image/jpeg', quality);
+      }
+      resolve(out.length <= 120000 ? out : '');
+    };
+    img.onerror = () => resolve(src.length <= 120000 ? src : '');
+    img.src = src;
+  });
+};

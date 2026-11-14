@@ -14,6 +14,7 @@ import {
   MapPin,
   Box,
   RefreshCw,
+  MessageSquareText,
 } from 'lucide-react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase.js';
@@ -35,6 +36,7 @@ const STEPS: { key: OrderTracking['status']; labelEn: string; labelBn: string }[
 
 export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigate }) => {
   const {
+    products,
     myOrderNumbers,
     addMyOrderNumber,
     firebaseUser,
@@ -143,6 +145,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigate }) => {
         total: fromAuth.total,
         district: fromAuth.district,
         paymentMethod: fromAuth.paymentMethod,
+        customerNote: fromAuth.customerNote,
         createdAt: fromAuth.createdAt,
         updatedAt: fromAuth.updatedAt,
       } as OrderTracking;
@@ -397,35 +400,60 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigate }) => {
                     {t('Ordered Products', 'অর্ডার করা পণ্যসমূহ')} ({order.items.length})
                   </h4>
                   <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/60">
-                    {order.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 p-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.productName}
-                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
-                              <Package className="w-5 h-5" />
+                    {order.items.map((item, i) => {
+                      const itemImage =
+                        item.image ||
+                        products.find((p) => p.id === item.productId)?.images?.[0] ||
+                        '';
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-3 p-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {itemImage ? (
+                              <img
+                                src={itemImage}
+                                alt={item.productName}
+                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                                <Package className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {item.productName}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                                <span>
+                                  {formatPrice(item.price)} × {item.quantity}
+                                </span>
+                                {item.selectedColor && (
+                                  <span className="px-1.5 py-0.2 rounded-md bg-slate-200/80 text-slate-700 text-[10px] font-bold">
+                                    {item.selectedColor}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-900 truncate">
-                              {item.productName}
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              {formatPrice(item.price)} × {item.quantity}
-                            </p>
                           </div>
+                          <span className="text-xs font-extrabold text-slate-900 shrink-0">
+                            {formatPrice(item.price * item.quantity)}
+                          </span>
                         </div>
-                        <span className="text-xs font-extrabold text-slate-900 shrink-0">
-                          {formatPrice(item.price * item.quantity)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+
+                  {order.customerNote && (
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 text-xs flex items-start gap-2 text-slate-700">
+                      <MessageSquareText className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-slate-800 mr-1">
+                          {t('Order Note:', 'অর্ডার নোট:')}
+                        </span>
+                        <span>{order.customerNote}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Order Total Summary */}

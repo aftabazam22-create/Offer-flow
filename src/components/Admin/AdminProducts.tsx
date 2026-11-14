@@ -48,6 +48,7 @@ export const AdminProducts: React.FC = () => {
     brand: 'Offer Flow',
     images: [] as string[],
     tagsText: '',
+    colorsText: '',
     isFeatured: false,
     isFlashSale: false,
     isNewArrival: true,
@@ -127,6 +128,7 @@ export const AdminProducts: React.FC = () => {
       brand: 'Offer Flow',
       images: [],
       tagsText: 'gadgets, best seller, offer flow',
+      colorsText: '',
       isFeatured: true,
       isFlashSale: false,
       isNewArrival: true,
@@ -154,6 +156,7 @@ export const AdminProducts: React.FC = () => {
       brand: p.brand,
       images: Array.isArray(p.images) ? [...p.images] : [],
       tagsText: (p.tags || []).join(', '),
+      colorsText: (p.colors || []).join(', '),
       isFeatured: !!p.isFeatured,
       isFlashSale: !!p.isFlashSale,
       isNewArrival: !!p.isNewArrival,
@@ -183,6 +186,15 @@ export const AdminProducts: React.FC = () => {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const colors = Array.from(
+      new Set(
+        formData.colorsText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 20);
+
     const specsList: { label: string; value: string }[] = [];
     formData.specsText.split('\n').forEach((line) => {
       if (line.includes(':')) {
@@ -203,6 +215,7 @@ export const AdminProducts: React.FC = () => {
       brand: formData.brand.trim() || 'Offer Flow',
       images: formData.images,
       tags,
+      colors,
       specifications: specsList,
       isFeatured: formData.isFeatured,
       isFlashSale: formData.isFlashSale,
@@ -667,6 +680,47 @@ export const AdminProducts: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, tagsText: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Available Colors / রঙের অপশন (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.colorsText}
+                    onChange={(e) => setFormData({ ...formData, colorsText: e.target.value })}
+                    placeholder="e.g. Black, White, Blue, Red, Silver"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {['Black', 'White', 'Blue', 'Red', 'Green', 'Silver', 'Gold', 'Pink'].map((preset) => {
+                      const current = formData.colorsText
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      const isAdded = current.some((c) => c.toLowerCase() === preset.toLowerCase());
+                      return (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            const updated = isAdded
+                              ? current.filter((c) => c.toLowerCase() !== preset.toLowerCase())
+                              : [...current, preset];
+                            setFormData({ ...formData, colorsText: updated.join(', ') });
+                          }}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                            isAdded
+                              ? 'bg-rose-600 text-white border-rose-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'
+                          }`}
+                        >
+                          {isAdded ? `✓ ${preset}` : `+ ${preset}`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

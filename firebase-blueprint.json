@@ -33,6 +33,7 @@
         "subcategory": { "type": "string", "maxLength": 120 },
         "brand": { "type": "string", "maxLength": 120 },
         "tags": { "type": "array" },
+        "colors": { "type": "array", "description": "Available product color options (max 20)." },
         "isFeatured": { "type": "boolean" },
         "isNewArrival": { "type": "boolean" },
         "isFlashSale": { "type": "boolean" },
@@ -184,6 +185,7 @@
         "status": { "type": "string", "enum": ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"] },
         "paymentMethod": { "type": "string", "enum": ["cash_on_delivery", "whatsapp_cod"] },
         "internalNotes": { "type": "string", "maxLength": 1000 },
+        "customerNote": { "type": "string", "maxLength": 1000 },
         "statusNote": { "type": "string", "maxLength": 500 },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -207,6 +209,7 @@
         "district": { "type": "string", "maxLength": 100 },
         "paymentMethod": { "type": "string", "enum": ["cash_on_delivery", "whatsapp_cod"] },
         "phoneLast4": { "type": "string", "maxLength": 4 },
+        "customerNote": { "type": "string", "maxLength": 1000 },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

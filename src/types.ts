@@ -14,6 +14,7 @@ export interface Product {
   subcategory?: string;
   brand: string;
   tags: string[];
+  colors?: string[];
   isFeatured: boolean;
   isNewArrival: boolean;
   isFlashSale: boolean;
@@ -74,6 +75,7 @@ export interface OrderItem {
   quantity: number;
   image: string;
   sku?: string;
+  selectedColor?: string;
 }
 
 export interface Order {
@@ -95,6 +97,7 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentMethod: 'cash_on_delivery' | 'whatsapp_cod';
   internalNotes: string;
+  customerNote?: string;
   statusNote?: string;
   createdAt: string;
   updatedAt: string;
@@ -113,6 +116,7 @@ export interface OrderTracking {
   district: string;
   paymentMethod: 'cash_on_delivery' | 'whatsapp_cod';
   phoneLast4?: string;
+  customerNote?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -205,6 +209,7 @@ export interface SiteSettings {
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedColor?: string;
 }
 
 export interface UserProfile {
