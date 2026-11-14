@@ -88,6 +88,9 @@ function MainContent() {
   const [currentView, setCurrentView] = useState<string>('home');
   const [viewParam, setViewParam] = useState<string | undefined>(undefined);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [navHistory, setNavHistory] = useState<
+    { view: string; param?: string; productId?: string | null }[]
+  >([{ view: 'home' }]);
   const [isUserAuthModalOpen, setIsUserAuthModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
@@ -102,37 +105,86 @@ function MainContent() {
     }
   }, [currentView, selectedProduct, products, storeLoading]);
 
-  const navigateTo = (view: string, param?: string) => {
+  const navigateTo = (view: string, param?: string, productIdOverride?: string | null) => {
+    const nextProductId =
+      view === 'product'
+        ? productIdOverride !== undefined
+          ? productIdOverride
+          : selectedProductId
+        : null;
+
+    if (view === 'home' && !param) {
+      setNavHistory([{ view: 'home' }]);
+    } else {
+      setNavHistory((prev) => {
+        const last = prev[prev.length - 1];
+        if (
+          last &&
+          last.view === view &&
+          last.param === param &&
+          (last.productId ?? null) === nextProductId
+        ) {
+          return prev;
+        }
+        return [...prev, { view, param, productId: nextProductId }];
+      });
+    }
+
     setCurrentView(view);
     setViewParam(param);
+    if (view !== 'product') {
+      setSelectedProductId(null);
+    } else if (productIdOverride !== undefined) {
+      setSelectedProductId(productIdOverride);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = () => {
+    if (navHistory.length > 1) {
+      const nextHistory = navHistory.slice(0, -1);
+      const prevEntry = nextHistory[nextHistory.length - 1];
+      setNavHistory(nextHistory);
+      setCurrentView(prevEntry.view);
+      setViewParam(prevEntry.param);
+      setSelectedProductId(prevEntry.productId ?? null);
+    } else {
+      setNavHistory([{ view: 'home' }]);
+      setCurrentView('home');
+      setViewParam(undefined);
+      setSelectedProductId(null);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectProduct = (prod: Product) => {
-    setSelectedProductId(prod.id);
-    navigateTo('product');
+    navigateTo('product', undefined, prod.id);
   };
 
   // If in admin mode and user is authenticated Admin, show Admin Portal
   if (currentView === 'admin' && adminUser) {
-    return <AdminLayout onNavigateStore={() => navigateTo('home')} />;
+    return <AdminLayout onNavigateStore={() => navigateTo('home')} onBack={handleBack} />;
   }
 
   const activeProducts = products.filter((p) => p.status !== 'inactive');
   const activeCategories = categories.filter((c) => c.isActive !== false);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden flex flex-col bg-slate-50/50 text-slate-800 font-sans antialiased selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen w-full overflow-x-clip flex flex-col bg-slate-50/50 text-slate-800 font-sans antialiased selection:bg-rose-500 selection:text-white">
       {/* Global Header */}
       <Header
         currentView={currentView}
         onNavigate={navigateTo}
+        onBack={handleBack}
         onOpenUserLogin={() => setIsUserAuthModalOpen(true)}
         onOpenAdminLogin={() => setIsAdminModalOpen(true)}
       />
 
       {/* Main Viewport Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      <main
+        key={`${currentView}-${viewParam || ''}-${selectedProductId || ''}`}
+        className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 animate-in fade-in duration-300"
+      >
         {storeLoading ? (
           <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
             <div className="w-12 h-12 rounded-full border-4 border-rose-500 border-t-transparent animate-spin"></div>
@@ -194,7 +246,7 @@ function MainContent() {
                 allProducts={activeProducts}
                 onSelectProduct={handleSelectProduct}
                 onNavigate={navigateTo}
-                onBack={() => navigateTo('shop')}
+                onBack={handleBack}
               />
             )}
 

@@ -6,7 +6,6 @@ import {
   Bell,
   ShieldCheck,
   Database,
-  RefreshCw,
 } from 'lucide-react';
 import { SiteSettings } from '../../types.js';
 import { api } from '../../services/api.js';
@@ -17,7 +16,6 @@ export const AdminSettings: React.FC = () => {
   const { settings, adminUser, showToast } = useStore();
   const [formData, setFormData] = useState<SiteSettings>(settings);
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     setFormData(settings);
@@ -33,22 +31,6 @@ export const AdminSettings: React.FC = () => {
       showToast('Failed to save settings');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSyncCatalog = async () => {
-    setSyncing(true);
-    try {
-      const res = await api.seedDefaultsToFirestore(true);
-      showToast(
-        res.seededCollections > 0
-          ? `Synced ${res.seededCollections} collection(s) to Firestore!`
-          : 'All default catalog items are already persisted in Firestore!'
-      );
-    } catch {
-      showToast('Failed to sync default catalog');
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -88,16 +70,6 @@ export const AdminSettings: React.FC = () => {
               </p>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={handleSyncCatalog}
-            disabled={syncing}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-50 self-start sm:self-auto"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing...' : 'Sync Missing Defaults'}</span>
-          </button>
         </div>
       </div>
 

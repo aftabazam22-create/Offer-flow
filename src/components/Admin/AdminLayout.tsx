@@ -13,6 +13,7 @@ import {
   X,
   Tag,
   Database,
+  ArrowLeft,
 } from 'lucide-react';
 import { AdminDashboard } from './AdminDashboard.js';
 import { AdminProducts } from './AdminProducts.js';
@@ -28,13 +29,37 @@ import { Order } from '../../types.js';
 
 interface AdminLayoutProps {
   onNavigateStore: () => void;
+  onBack: () => void;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => {
+export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBack }) => {
   const { adminUser, logoutAdmin, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [tabHistory, setTabHistory] = useState<string[]>(['dashboard']);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+
+  const selectAdminTab = (tab: string) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setTabHistory((prev) => [...prev, tab]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleAdminBack = () => {
+    if (tabHistory.length > 1) {
+      const next = tabHistory.slice(0, -1);
+      setTabHistory(next);
+      setActiveTab(next[next.length - 1]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (activeTab !== 'dashboard') {
+      setActiveTab('dashboard');
+      setTabHistory(['dashboard']);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      onBack();
+    }
+  };
 
   useEffect(() => {
     const unsub = api.subscribeOrders((data) => {
@@ -72,8 +97,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Top Admin Bar */}
-      <header className="bg-slate-900 text-white px-4 sm:px-6 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-3">
+      <header className="bg-slate-900 text-white px-3 sm:px-6 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={handleAdminBack}
+            className="p-1.5 rounded-xl bg-white/10 hover:bg-rose-600 text-white transition-all active:scale-90"
+            title="Back"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+
           <button
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
             className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white"
@@ -136,7 +171,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => 
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => selectAdminTab(item.id)}
                 className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
                   isActive
                     ? 'bg-rose-600 text-white shadow-xs'
@@ -163,8 +198,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => 
 
         {/* Mobile Navigation Drawer */}
         {mobileNavOpen && (
-          <div className="md:hidden fixed inset-0 top-[52px] z-50 bg-black/50 backdrop-blur-xs flex flex-col p-4">
-            <div className="bg-white rounded-2xl p-4 shadow-xl space-y-1">
+          <div
+            className="md:hidden fixed inset-0 top-[52px] z-50 bg-black/50 backdrop-blur-xs flex flex-col p-4"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <div
+              className="bg-white rounded-2xl p-4 shadow-xl space-y-1"
+              onClick={(e) => e.stopPropagation()}
+            >
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -172,7 +213,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => 
                   <button
                     key={item.id}
                     onClick={() => {
-                      setActiveTab(item.id);
+                      selectAdminTab(item.id);
                       setMobileNavOpen(false);
                     }}
                     className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
@@ -200,7 +241,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore }) => 
           {activeTab === 'dashboard' && (
             <AdminDashboard
               orders={orders}
-              onSelectTab={(t) => setActiveTab(t)}
+              onSelectTab={(t) => selectAdminTab(t)}
               onNavigateStore={onNavigateStore}
             />
           )}

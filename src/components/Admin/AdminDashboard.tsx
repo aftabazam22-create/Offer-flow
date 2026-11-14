@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Package,
   ShoppingCart,
@@ -11,10 +11,7 @@ import {
   ArrowRight,
   ExternalLink,
   Tag,
-  Database,
-  RefreshCw,
 } from 'lucide-react';
-import { api } from '../../services/api.js';
 import { Order } from '../../types.js';
 import { useStore } from '../../context/StoreContext.js';
 
@@ -29,8 +26,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSelectTab,
   onNavigateStore,
 }) => {
-  const { products, categories, isUsingSeedProducts, formatPrice, showToast } = useStore();
-  const [syncing, setSyncing] = useState(false);
+  const { products, categories, formatPrice } = useStore();
 
   const totalRevenue = orders
     .filter((o) => o.status !== 'cancelled')
@@ -39,22 +35,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const lowStockAlerts = products.filter((p) => p.stock < 5).length;
   const uniqueCustomers = new Set(orders.map((o) => o.phone).filter(Boolean)).size;
   const recentOrders = orders.slice(0, 6);
-
-  const handleSyncCatalog = async () => {
-    setSyncing(true);
-    try {
-      const res = await api.seedDefaultsToFirestore(true);
-      showToast(
-        res.seededCollections > 0
-          ? `Synced ${res.seededCollections} default collection(s) to Firestore!`
-          : 'All default catalog items are already synced in Firestore!'
-      );
-    } catch {
-      showToast('Failed to sync default catalog');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const statCards = [
     {
@@ -105,15 +85,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={handleSyncCatalog}
-            disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing...' : 'Sync Default Catalog'}</span>
-          </button>
-
-          <button
             onClick={onNavigateStore}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold backdrop-blur-md transition-colors"
           >
@@ -122,24 +93,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
         </div>
       </div>
-
-      {isUsingSeedProducts && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
-          <div className="flex items-center gap-2.5">
-            <Database className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              Default starter catalog is currently syncing to Cloud Firestore. Click "Sync Default Catalog" if items don’t appear immediately.
-            </span>
-          </div>
-          <button
-            onClick={handleSyncCatalog}
-            disabled={syncing}
-            className="px-4 py-1.5 rounded-xl bg-amber-600 text-white font-bold text-xs shrink-0 hover:bg-amber-700"
-          >
-            Sync Now
-          </button>
-        </div>
-      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
