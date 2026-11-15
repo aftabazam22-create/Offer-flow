@@ -305,7 +305,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
         clearCart();
       }
 
-      if (firebaseUser && firebaseUser.emailVerified) {
+      if (firebaseUser && (firebaseUser.emailVerified || firebaseUser.phoneNumber)) {
         updateUserProfile({
           displayName: customerName.trim(),
           email: email.trim() || firebaseUser.email || '',

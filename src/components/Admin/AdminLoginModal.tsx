@@ -117,6 +117,11 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     } catch (err: any) {
       if (err?.code === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed. Please try again.');
+      } else if (err?.code === 'auth/unauthorized-domain') {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        setError(
+          `Domain "${host}" is not authorized in Firebase Authentication yet. Add "${host}" in Firebase Console → Authentication → Settings → Authorized domains.`
+        );
       } else {
         setError(err?.message || 'Google sign-in failed.');
       }

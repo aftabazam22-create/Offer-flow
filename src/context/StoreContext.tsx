@@ -273,13 +273,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsub = api.subscribeUserProfile(firebaseUser.uid, (profile) => {
       if (profile) {
         setUserProfile(profile);
-      } else if (firebaseUser.emailVerified) {
-        // Initialize profile doc cleanly for verified users
+      } else if (firebaseUser.emailVerified || firebaseUser.phoneNumber) {
+        // Initialize profile doc cleanly for verified email or phone users
         api
           .saveUserProfile(firebaseUser.uid, {
             displayName:
-              firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Customer',
+              firebaseUser.displayName ||
+              firebaseUser.email?.split('@')[0] ||
+              firebaseUser.phoneNumber ||
+              'Customer',
             email: firebaseUser.email || '',
+            phone: firebaseUser.phoneNumber
+              ? firebaseUser.phoneNumber.replace(/^\+88/, '')
+              : '',
             photoURL: firebaseUser.photoURL || '',
           })
           .then((created) => setUserProfile(created))
@@ -290,7 +296,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     return () => unsub();
-  }, [authReady, firebaseUser?.uid, firebaseUser?.emailVerified]);
+  }, [authReady, firebaseUser?.uid, firebaseUser?.emailVerified, firebaseUser?.phoneNumber]);
 
   const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!firebaseUser) return;

@@ -291,12 +291,16 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.token.email_verified == true && isValidId(uid) && request.auth.uid == uid &&
+      allow create: if isSignedIn() &&
+        (request.auth.token.email_verified == true || ('phone_number' in request.auth.token && request.auth.token.phone_number != null)) &&
+        isValidId(uid) && request.auth.uid == uid &&
         isValidUserProfile(incoming()) &&
         incoming().uid == uid &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
-      allow update: if isSignedIn() && request.auth.token.email_verified == true && isValidId(uid) && request.auth.uid == uid &&
+      allow update: if isSignedIn() &&
+        (request.auth.token.email_verified == true || ('phone_number' in request.auth.token && request.auth.token.phone_number != null)) &&
+        isValidId(uid) && request.auth.uid == uid &&
         isValidUserProfile(incoming()) &&
         incoming().uid == existing().uid &&
         incoming().createdAt == existing().createdAt &&

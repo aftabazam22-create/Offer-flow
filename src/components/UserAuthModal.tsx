@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   User,
@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Truck,
   Sparkles,
+  KeyRound,
 } from 'lucide-react';
 import {
   signInWithPopup,
@@ -28,6 +29,9 @@ import {
   updateProfile,
   sendEmailVerification,
   sendPasswordResetEmail,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase.js';
 import { useStore } from '../context/StoreContext.js';
@@ -84,6 +88,15 @@ const GoogleLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-4 h-4'
   </svg>
 );
 
+function formatPhoneToE164(raw: string): string {
+  const trimmed = raw.trim().replace(/[\s\-()]/g, '');
+  if (trimmed.startsWith('+')) return trimmed;
+  if (trimmed.startsWith('880')) return `+${trimmed}`;
+  if (trimmed.startsWith('01') && trimmed.length === 11) return `+88${trimmed}`;
+  if (trimmed.startsWith('1') && trimmed.length === 10) return `+880${trimmed}`;
+  return `+88${trimmed}`;
+}
+
 interface UserAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -109,12 +122,21 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
     showToast,
   } = useStore();
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'phone' | 'register'>('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Phone OTP state
+  const [phoneInput, setPhoneInput] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
@@ -126,13 +148,32 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
   const [profAddress, setProfAddress] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const cleanupRecaptcha = () => {
+    if (recaptchaVerifierRef.current) {
+      try {
+        recaptchaVerifierRef.current.clear();
+      } catch {}
+      recaptchaVerifierRef.current = null;
+    }
+    if (recaptchaContainerRef.current) {
+      recaptchaContainerRef.current.innerHTML = '';
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setError(null);
       setInfoMsg(null);
       setPassword('');
       setShowPassword(false);
+      setOtpInput('');
+      setConfirmationResult(null);
+    } else {
+      cleanupRecaptcha();
     }
+    return () => {
+      if (!isOpen) cleanupRecaptcha();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -141,9 +182,13 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         userProfile?.displayName ||
           firebaseUser.displayName ||
           firebaseUser.email?.split('@')[0] ||
+          firebaseUser.phoneNumber ||
           ''
       );
-      setProfPhone(userProfile?.phone || '');
+      setProfPhone(
+        userProfile?.phone ||
+          (firebaseUser.phoneNumber ? firebaseUser.phoneNumber.replace(/^\+88/, '') : '')
+      );
       setProfDistrict(userProfile?.district || 'Dhaka');
       setProfArea(userProfile?.area || '');
       setProfAddress(userProfile?.address || '');
@@ -152,19 +197,128 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const formatAuthError = (err: any, providerLabel?: string) => {
+    const code = err?.code || '';
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+
+    if (code === 'auth/unauthorized-domain') {
+      return t(
+        `Domain "${host}" is not authorized in Firebase yet. Open Firebase Console → Authentication → Settings → Authorized domains and add "${host}" so Google & Phone sign-in work here.`,
+        `এই ডোমেইনটি (${host}) এখনো Firebase-এ অনুমোদিত নয়। Firebase Console → Authentication → Settings → Authorized domains এ গিয়ে "${host}" যোগ করলে Google ও Phone লগইন কাজ করবে।`
+      );
+    }
+    if (code === 'auth/popup-closed-by-user') {
+      return t('Sign-in popup was closed before completing.', 'লগইন পপআপ সম্পন্ন হওয়ার আগেই বন্ধ করা হয়েছে।');
+    }
+    if (code === 'auth/popup-blocked') {
+      return t(
+        'Sign-in popup was blocked by your browser. Please allow popups for this site.',
+        'আপনার ব্রাউজার পপআপ ব্লক করেছে। অনুগ্রহ করে পপআপ Allow করুন।'
+      );
+    }
+    if (code === 'auth/account-exists-with-different-credential') {
+      return t(
+        'An account already exists with this email under another sign-in method (e.g., Google). Please sign in using that method.',
+        'এই ইমেইল দিয়ে আগেই অন্য পদ্ধতিতে (যেমন Google) অ্যাকাউন্ট খোলা আছে। অনুগ্রহ করে সেই পদ্ধতিতে লগইন করুন।'
+      );
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return t(
+        `${providerLabel || 'This sign-in method'} is not enabled in Firebase Console → Authentication → Sign-in method yet.`,
+        `Firebase Console → Authentication → Sign-in method থেকে ${providerLabel || 'এই লগইন অপশনটি'} চালু করা আছে কিনা যাচাই করুন।`
+      );
+    }
+    if (code === 'auth/invalid-phone-number') {
+      return t(
+        'Please enter a valid mobile number (e.g. 017XXXXXXXX).',
+        'অনুগ্রহ করে সঠিক মোবাইল নম্বর দিন (যেমন: 017XXXXXXXX)।'
+      );
+    }
+    if (code === 'auth/invalid-verification-code') {
+      return t('Invalid 6-digit OTP code. Please check and try again.', 'ভুল OTP কোড। অনুগ্রহ করে সঠিক কোড লিখুন।');
+    }
+    if (code === 'auth/too-many-requests') {
+      return t(
+        'Too many attempts from this device. Please wait a few minutes and try again.',
+        'অতিরিক্ত চেষ্টার কারণে সাময়িকভাবে ব্লক হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।'
+      );
+    }
+    return err?.message || t('Authentication failed.', 'লগইন করা সম্ভব হয়নি।');
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setGoogleLoading(true);
     setError(null);
     setInfoMsg(null);
     try {
       await signInWithPopup(auth, googleProvider);
       showToast(t('Logged in with Google!', 'গুগল দিয়ে লগইন সফল হয়েছে!'));
     } catch (err: any) {
-      if (err?.code === 'auth/popup-closed-by-user') {
-        setError(t('Sign-in popup was closed.', 'লগইন পপআপ বন্ধ করা হয়েছে।'));
-      } else {
-        setError(err?.message || t('Google login failed.', 'গুগল লগইন ব্যর্থ হয়েছে।'));
+      setError(formatAuthError(err, 'Google Sign-In'));
+    } finally {
+      setLoading(false);
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleSendPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = phoneInput.trim();
+    if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
+      setError(
+        t(
+          'Enter a valid 11-digit mobile number (e.g. 01712345678).',
+          'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (যেমন: 01712345678)।'
+        )
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setInfoMsg(null);
+
+    try {
+      cleanupRecaptcha();
+      if (!recaptchaContainerRef.current) {
+        throw new Error('Security verification container not ready.');
       }
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
+        size: 'invisible',
+      });
+      recaptchaVerifierRef.current = verifier;
+      const e164 = formatPhoneToE164(cleaned);
+      const confirmation = await signInWithPhoneNumber(auth, e164, verifier);
+      setConfirmationResult(confirmation);
+      setInfoMsg(
+        t(
+          `6-digit verification code sent to ${e164}.`,
+          `${e164} নম্বরে ৬ ডিজিটের ভেরিফিকেশন কোড পাঠানো হয়েছে।`
+        )
+      );
+    } catch (err: any) {
+      cleanupRecaptcha();
+      setError(formatAuthError(err, 'Phone Sign-In'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!confirmationResult || otpInput.trim().length < 6) {
+      setError(t('Please enter the 6-digit OTP code.', '৬ ডিজিটের OTP কোডটি লিখুন।'));
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await confirmationResult.confirm(otpInput.trim());
+      cleanupRecaptcha();
+      showToast(t('Phone verified & logged in!', 'মোবাইল নম্বর ভেরিফাই ও লগইন সফল হয়েছে!'));
+    } catch (err: any) {
+      setError(formatAuthError(err, 'Phone Verification'));
     } finally {
       setLoading(false);
     }
@@ -188,9 +342,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         await updateProfile(cred.user, { displayName: fullName.trim() });
         try {
           await sendEmailVerification(cred.user);
-        } catch {
-          // Ignore verification email rate errors
-        }
+        } catch {}
         showToast(t('Account created successfully!', 'নতুন অ্যাকাউন্ট তৈরি হয়েছে!'));
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -198,14 +350,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       }
     } catch (err: any) {
       const code = err?.code || '';
-      if (code === 'auth/operation-not-allowed') {
-        setError(
-          t(
-            'Email/Password login is not enabled in Firebase Authentication yet. Please use "Continue with Google" above.',
-            'ফায়ারবেসে ইমেইল/পাসওয়ার্ড লগইন এখনো চালু করা হয়নি। অনুগ্রহ করে উপরের "Continue with Google" ব্যবহার করুন।'
-          )
-        );
-      } else if (code === 'auth/email-already-in-use') {
+      if (code === 'auth/email-already-in-use') {
         setError(
           t(
             'An account already exists with this email. Try signing in instead.',
@@ -223,12 +368,12 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       ) {
         setError(
           t(
-            'Invalid email or password. If you signed up with Google, use Google Sign-In above.',
+            'Invalid email or password. If you signed up with Google, use the Google button above.',
             'ইমেইল বা পাসওয়ার্ড সঠিক নয়। আগে Google দিয়ে লগইন করে থাকলে উপরের Google বাটন ব্যবহার করুন।'
           )
         );
       } else {
-        setError(err?.message || t('Authentication failed.', 'লগইন করা সম্ভব হয়নি।'));
+        setError(formatAuthError(err, 'Email/Password'));
       }
     } finally {
       setLoading(false);
@@ -253,16 +398,18 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         )
       );
     } catch (err: any) {
-      setError(err?.message || t('Could not send reset email.', 'রিসেট ইমেইল পাঠানো যায়নি।'));
+      setError(formatAuthError(err, 'Password Reset'));
     } finally {
       setLoading(false);
     }
   };
 
+  const isUserVerified = Boolean(firebaseUser?.emailVerified || firebaseUser?.phoneNumber);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firebaseUser) return;
-    if (!firebaseUser.emailVerified) {
+    if (!isUserVerified) {
       setError(
         t(
           'Please verify your email address first before saving profile details.',
@@ -332,6 +479,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
     userProfile?.displayName ||
     firebaseUser?.displayName ||
     firebaseUser?.email ||
+    firebaseUser?.phoneNumber ||
     'U'
   )
     .charAt(0)
@@ -352,7 +500,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 z-20 w-9 h-9 rounded-full bg-slate-100/90 hover:bg-slate-200 md:bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+          className="absolute top-3.5 right-3.5 z-20 w-9 h-9 rounded-full bg-slate-100/90 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
           aria-label="Close"
         >
           <X className="w-4 h-4" />
@@ -361,7 +509,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         {!firebaseUser ? (
           /* Luxury Split-Column Auth View */
           <div className="grid grid-cols-1 md:grid-cols-12">
-            {/* Left Editorial Brand Showcase (Desktop & Compact Mobile Header) */}
+            {/* Left Editorial Brand Showcase */}
             <div className="md:col-span-5 bg-[#0B0F19] text-white p-5 sm:p-6 md:p-8 flex flex-col justify-between relative overflow-hidden">
               <div
                 className="pointer-events-none absolute inset-0 opacity-20"
@@ -372,7 +520,6 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
               />
 
               <div className="relative z-10 space-y-4 md:space-y-6 pr-8 md:pr-0">
-                {/* Brand Lockup */}
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 flex items-center justify-center text-white font-black text-sm tracking-tight shadow-md shadow-rose-900/40">
                     OF
@@ -384,20 +531,19 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
                 <div className="space-y-1.5">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-white text-balance leading-snug">
-                    {mode === 'login'
-                      ? t('Welcome back to Offer Flow', 'অফার ফ্লো-তে স্বাগতম')
-                      : t('Join Offer Flow Membership', 'নতুন সদস্য হিসেবে যোগ দিন')}
+                    {mode === 'register'
+                      ? t('Join Offer Flow Membership', 'নতুন সদস্য হিসেবে যোগ দিন')
+                      : t('Welcome back to Offer Flow', 'অফার ফ্লো-তে স্বাগতম')}
                   </h2>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     {t(
-                      'Sign in once for instant address autofill, live parcel tracking, and seamless Cash on Delivery orders.',
-                      'একবার লগইন করলে দ্রুত ঠিকানা অটোফিল, লাইভ অর্ডার ট্র্যাকিং এবং সহজ ক্যাশ অন ডেলিভারি সুবিধা পাবেন।'
+                      'Sign in once with Google, Phone OTP, or Email for express checkout and live tracking.',
+                      'Google, মোবাইল OTP বা ইমেইল দিয়ে লগইন করে দ্রুত অর্ডার ও লাইভ ট্র্যাকিং সুবিধা নিন।'
                     )}
                   </p>
                 </div>
               </div>
 
-              {/* Clean Hairline Benefits List (Desktop) */}
               <div className="relative z-10 hidden md:block pt-6 mt-6 border-t border-white/10 space-y-3.5 text-xs text-slate-300">
                 <div className="flex items-start gap-2.5">
                   <Truck className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
@@ -428,7 +574,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                       {t('Protected Account Access', 'সুরক্ষিত অ্যাকাউন্ট')}
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      {t('Encrypted sign-in backed by Google Cloud', 'গুগল ক্লাউড সিকিউরিটি দ্বারা সুরক্ষিত')}
+                      {t('Multi-provider authentication via Firebase', 'গুগল ক্লাউড সিকিউরিটি দ্বারা সুরক্ষিত')}
                     </p>
                   </div>
                 </div>
@@ -436,25 +582,28 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
             </div>
 
             {/* Right Authentication Form Area */}
-            <div className="md:col-span-7 p-5 sm:p-6 md:p-8 flex flex-col justify-between space-y-5 max-h-[82vh] overflow-y-auto">
+            <div className="md:col-span-7 p-5 sm:p-6 md:p-8 flex flex-col justify-between space-y-4 max-h-[82vh] overflow-y-auto">
               <div className="space-y-4">
                 <div className="space-y-1 pr-8">
                   <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-                    {mode === 'login'
-                      ? t('Sign in to your account', 'অ্যাকাউন্টে লগইন করুন')
-                      : t('Create your account', 'নতুন অ্যাকাউন্ট খুলুন')}
+                    {mode === 'phone'
+                      ? t('Phone Number Sign In', 'মোবাইল নম্বর দিয়ে লগইন')
+                      : mode === 'register'
+                      ? t('Create your account', 'নতুন অ্যাকাউন্ট খুলুন')
+                      : t('Sign in to your account', 'অ্যাকাউন্টে লগইন করুন')}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {mode === 'login'
-                      ? t('Choose Google or enter your email credentials.', 'গুগল অথবা ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।')
-                      : t('Takes less than 30 seconds to get started.', 'শুরু করতে ৩০ সেকেন্ডেরও কম সময় লাগবে।')}
+                    {t(
+                      'Choose Google, Phone OTP, or Email below.',
+                      'Google, Phone OTP অথবা ইমেইল ব্যবহার করুন।'
+                    )}
                   </p>
                 </div>
 
                 {error && (
                   <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span className="leading-relaxed">{error}</span>
+                    <span className="leading-relaxed break-words">{error}</span>
                   </div>
                 )}
 
@@ -470,145 +619,262 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  className="w-full min-h-[44px] py-2.5 px-4 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-3 transition-all disabled:opacity-50 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+                  className="w-full min-h-[44px] py-2.5 px-4 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-3 transition-all disabled:opacity-50 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500 whitespace-nowrap"
                 >
-                  {loading ? (
+                  {googleLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
                   ) : (
                     <GoogleLogoSvg className="w-4 h-4 shrink-0" />
                   )}
-                  <span>{t('Continue with Google', 'Google দিয়ে দ্রুত লগইন করুন')}</span>
+                  <span>{t('Continue with Google', 'Google দিয়ে দ্রুত লগইন করুন')}</span>
                 </button>
 
                 <div className="relative flex items-center py-0.5">
                   <div className="flex-grow border-t border-slate-200" />
                   <span className="shrink mx-3 text-[11px] font-medium text-slate-400">
-                    {t('or continue with email', 'অথবা ইমেইল ব্যবহার করুন')}
+                    {t('or use Phone OTP / Email', 'অথবা Phone OTP / ইমেইল')}
                   </span>
                   <div className="flex-grow border-t border-slate-200" />
                 </div>
 
-                {/* Clean Segmented Tabs */}
-                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                {/* 3-Tab Switcher: Sign In / Phone OTP / Register */}
+                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => {
                       setMode('login');
                       setError(null);
+                      setInfoMsg(null);
                     }}
-                    className={`min-h-[38px] py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                    className={`min-h-[38px] py-1.5 px-2 rounded-lg transition-all whitespace-nowrap ${
                       mode === 'login'
                         ? 'bg-white text-slate-900 shadow-xs font-bold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {t('Sign In', 'লগইন')}
+                    {t('Email Login', 'ইমেইল')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('phone');
+                      setError(null);
+                      setInfoMsg(null);
+                    }}
+                    className={`min-h-[38px] py-1.5 px-2 rounded-lg transition-all whitespace-nowrap ${
+                      mode === 'phone'
+                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t('Phone OTP', 'মোবাইল OTP')}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setMode('register');
                       setError(null);
+                      setInfoMsg(null);
                     }}
-                    className={`min-h-[38px] py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                    className={`min-h-[38px] py-1.5 px-2 rounded-lg transition-all whitespace-nowrap ${
                       mode === 'register'
                         ? 'bg-white text-slate-900 shadow-xs font-bold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {t('Create Account', 'নতুন অ্যাকাউন্ট')}
+                    {t('Sign Up', 'রেজিস্টার')}
                   </button>
                 </div>
 
-                <form onSubmit={handleEmailSubmit} className="space-y-3.5">
-                  {mode === 'register' && (
+                {/* Invisible reCAPTCHA mount point */}
+                <div ref={recaptchaContainerRef} />
+
+                {mode === 'phone' ? (
+                  !confirmationResult ? (
+                    <form onSubmit={handleSendPhoneOtp} className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          {t('Bangladesh Mobile Number', 'আপনার মোবাইল নম্বর')}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
+                            +88
+                          </span>
+                          <input
+                            type="tel"
+                            required
+                            value={phoneInput}
+                            onChange={(e) => setPhoneInput(e.target.value.replace(/[^0-9+]/g, ''))}
+                            placeholder="01712345678"
+                            maxLength={14}
+                            className="w-full min-h-[44px] pl-12 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1.5">
+                          {t(
+                            'We will send a 6-digit SMS verification code to this number.',
+                            'এই নম্বরে ৬ ডিজিটের একটি ভেরিফিকেশন SMS পাঠানো হবে।'
+                          )}
+                        </p>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full min-h-[44px] py-3 px-4 bg-slate-900 hover:bg-rose-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Phone className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {loading
+                            ? t('Sending OTP...', 'কোড পাঠানো হচ্ছে...')
+                            : t('Send OTP Verification Code', 'OTP কোড পাঠান')}
+                        </span>
+                      </button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyPhoneOtp} className="space-y-3.5">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-semibold text-slate-700">
+                            {t('Enter 6-Digit OTP Code', '৬ ডিজিটের OTP কোড লিখুন')}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmationResult(null);
+                              setOtpInput('');
+                              setError(null);
+                              setInfoMsg(null);
+                            }}
+                            className="text-[11px] font-semibold text-rose-600 hover:underline"
+                          >
+                            {t('Change number', 'নম্বর পরিবর্তন')}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            required
+                            maxLength={6}
+                            value={otpInput}
+                            onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                            placeholder="123456"
+                            className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold tracking-[0.35em] text-center text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading || otpInput.length < 6}
+                        className="w-full min-h-[44px] py-3 px-4 bg-slate-900 hover:bg-rose-600 text-white rounded-xl text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>
+                          {loading
+                            ? t('Verifying...', 'যাচাই হচ্ছে...')
+                            : t('Verify OTP & Sign In', 'যাচাই করে লগইন করুন')}
+                        </span>
+                      </button>
+                    </form>
+                  )
+                ) : (
+                  <form onSubmit={handleEmailSubmit} className="space-y-3.5">
+                    {mode === 'register' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          {t('Full Name', 'আপনার পুরো নাম')}
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            required
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder={t('e.g. Tanvir Hossain', 'যেমন: তানভীর হোসেন')}
+                            className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        {t('Full Name', 'আপনার পুরো নাম')}
+                        {t('Email Address', 'ইমেইল অ্যাড্রেস')}
                       </label>
                       <div className="relative">
-                        <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
-                          type="text"
+                          type="email"
                           required
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder={t('e.g. Tanvir Hossain', 'যেমন: তানভীর হোসেন')}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="name@gmail.com"
                           className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
                         />
                       </div>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {t('Email Address', 'ইমেইল অ্যাড্রেস')}
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@gmail.com"
-                        className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        {t('Password', 'পাসওয়ার্ড')}
-                      </label>
-                      {mode === 'login' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          {t('Password', 'পাসওয়ার্ড')}
+                        </label>
+                        {mode === 'login' && (
+                          <button
+                            type="button"
+                            onClick={handlePasswordReset}
+                            className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                          >
+                            {t('Forgot password?', 'পাসওয়ার্ড ভুলে গেছেন?')}
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          minLength={6}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder={t('Minimum 6 characters', 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড')}
+                          className="w-full min-h-[44px] pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                        />
                         <button
                           type="button"
-                          onClick={handlePasswordReset}
-                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
-                          {t('Forgot password?', 'পাসওয়ার্ড ভুলে গেছেন?')}
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                      )}
+                      </div>
                     </div>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        minLength={6}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder={t('Minimum 6 characters', 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড')}
-                        className="w-full min-h-[44px] pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 transition-colors"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full min-h-[44px] py-3 px-4 bg-slate-900 hover:bg-rose-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
-                  >
-                    <span>
-                      {loading
-                        ? t('Signing you in...', 'অপেক্ষা করুন...')
-                        : mode === 'login'
-                        ? t('Sign In to Offer Flow', 'লগইন সম্পন্ন করুন')
-                        : t('Create Free Account', 'নতুন অ্যাকাউন্ট তৈরি করুন')}
-                    </span>
-                    {!loading && <ArrowRight className="w-3.5 h-3.5" />}
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full min-h-[44px] py-3 px-4 bg-slate-900 hover:bg-rose-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+                    >
+                      <span>
+                        {loading
+                          ? t('Signing you in...', 'অপেক্ষা করুন...')
+                          : mode === 'login'
+                          ? t('Sign In to Offer Flow', 'লগইন সম্পন্ন করুন')
+                          : t('Create Free Account', 'নতুন অ্যাকাউন্ট তৈরি করুন')}
+                      </span>
+                      {!loading && <ArrowRight className="w-3.5 h-3.5" />}
+                    </button>
+                  </form>
+                )}
               </div>
 
               {/* Clean Footer Bar */}
@@ -631,7 +897,6 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         ) : (
           /* Signed-In Member Profile Suite */
           <div>
-            {/* Dark Editorial Header */}
             <div className="px-6 py-5 bg-[#0B0F19] text-white flex items-center gap-3.5 pr-14">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-white/15 font-black text-base">
                 {firebaseUser.photoURL ? (
@@ -649,11 +914,14 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 <h3 className="text-base font-bold text-white truncate">
                   {userProfile?.displayName ||
                     firebaseUser.displayName ||
+                    firebaseUser.phoneNumber ||
                     t('Member Account', 'মেম্বার অ্যাকাউন্ট')}
                 </h3>
                 <div className="flex items-center gap-1.5 text-[11px] text-slate-300 truncate">
-                  <span className="truncate">{firebaseUser.email}</span>
-                  {firebaseUser.emailVerified && (
+                  <span className="truncate">
+                    {firebaseUser.email || firebaseUser.phoneNumber}
+                  </span>
+                  {isUserVerified && (
                     <>
                       <span aria-hidden="true">·</span>
                       <span className="text-emerald-400 font-semibold shrink-0">
@@ -680,7 +948,6 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 </div>
               )}
 
-              {/* Quick Navigation Cards */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -735,7 +1002,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 </button>
               )}
 
-              {!firebaseUser.emailVerified && (
+              {!isUserVerified && firebaseUser.email && (
                 <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
                   <p className="font-semibold">
                     {t(
@@ -763,7 +1030,6 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 </div>
               )}
 
-              {/* Saved Delivery Info Form */}
               <form
                 onSubmit={handleSaveProfile}
                 className="space-y-3 pt-3 border-t border-slate-100"
