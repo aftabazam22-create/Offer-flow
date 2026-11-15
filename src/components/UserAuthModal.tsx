@@ -17,6 +17,9 @@ import {
   Phone,
   Save,
   RefreshCw,
+  ArrowRight,
+  Truck,
+  Sparkles,
 } from 'lucide-react';
 import {
   signInWithPopup,
@@ -59,6 +62,27 @@ const BD_DISTRICTS = [
   'Sirajganj',
   'Other 64 Districts',
 ];
+
+const GoogleLogoSvg: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+    />
+  </svg>
+);
 
 interface UserAuthModalProps {
   isOpen: boolean;
@@ -177,14 +201,14 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       if (code === 'auth/operation-not-allowed') {
         setError(
           t(
-            'Email/Password login is not enabled in Firebase Authentication yet. Please use "Continue with Google" above, or enable Email/Password in Firebase Console -> Authentication -> Sign-in method.',
-            'ফায়ারবেসে ইমেইল/পাসওয়ার্ড লগইন এখনো চালু করা হয়নি। অনুগ্রহ করে উপরের "Google দিয়ে লগইন" ব্যবহার করুন, অথবা Firebase Console > Authentication > Sign-in method থেকে Email/Password চালু করুন।'
+            'Email/Password login is not enabled in Firebase Authentication yet. Please use "Continue with Google" above.',
+            'ফায়ারবেসে ইমেইল/পাসওয়ার্ড লগইন এখনো চালু করা হয়নি। অনুগ্রহ করে উপরের "Continue with Google" ব্যবহার করুন।'
           )
         );
       } else if (code === 'auth/email-already-in-use') {
         setError(
           t(
-            'An account already exists with this email. Try logging in instead.',
+            'An account already exists with this email. Try signing in instead.',
             'এই ইমেইল দিয়ে আগেই অ্যাকাউন্ট খোলা হয়েছে। লগইন করার চেষ্টা করুন।'
           )
         );
@@ -213,7 +237,9 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
   const handlePasswordReset = async () => {
     if (!email.trim()) {
-      setError(t('Enter your email address first to reset password.', 'পাসওয়ার্ড রিসেট করতে আগে ইমেইল লিখুন।'));
+      setError(
+        t('Enter your email address first to reset password.', 'পাসওয়ার্ড রিসেট করতে আগে ইমেইল লিখুন।')
+      );
       return;
     }
     setLoading(true);
@@ -293,246 +319,384 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       setInfoMsg(t('Email verified! Reloading profile...', 'ইমেইল ভেরিফাই সম্পন্ন!'));
       showToast(t('Email verified!', 'ইমেইল ভেরিফাই হয়েছে!'));
     } else {
-      setError(t('Email is not verified yet. Please check your inbox/spam.', 'ইমেইল এখনো ভেরিফাই হয়নি। ইনবক্স/স্প্যাম চেক করুন।'));
+      setError(
+        t(
+          'Email is not verified yet. Please check your inbox or spam folder.',
+          'ইমেইল এখনো ভেরিফাই হয়নি। ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।'
+        )
+      );
     }
   };
 
+  const displayInitial = (
+    userProfile?.displayName ||
+    firebaseUser?.displayName ||
+    firebaseUser?.email ||
+    'U'
+  )
+    .charAt(0)
+    .toUpperCase();
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 my-4">
-        {/* Modal Header */}
-        <div className="px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-rose-950 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-400/30 text-rose-300 flex items-center justify-center overflow-hidden">
-              {firebaseUser?.photoURL ? (
-                <img
-                  src={firebaseUser.photoURL}
-                  alt={firebaseUser.displayName || 'User'}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User className="w-5 h-5" />
-              )}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">
-                {firebaseUser
-                  ? t('My Account', 'আমার অ্যাকাউন্ট')
-                  : mode === 'login'
-                  ? t('Customer Login', 'কাস্টমার লগইন')
-                  : t('Create Account', 'নতুন অ্যাকাউন্ট খুলুন')}
-              </h3>
-              <p className="text-[11px] text-slate-300">
-                {firebaseUser
-                  ? firebaseUser.email || firebaseUser.displayName
-                  : t('Sync orders & fast checkout', 'সহজ অর্ডার ও লাইভ ট্র্যাকিং')}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className={`relative w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200/80 my-auto ${
+          firebaseUser ? 'max-w-lg' : 'max-w-3xl'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3.5 right-3.5 z-20 w-9 h-9 rounded-full bg-slate-100/90 hover:bg-slate-200 md:bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
 
-        <div className="p-5 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {error && (
-            <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{error}</span>
-            </div>
-          )}
+        {!firebaseUser ? (
+          /* Luxury Split-Column Auth View */
+          <div className="grid grid-cols-1 md:grid-cols-12">
+            {/* Left Editorial Brand Showcase (Desktop & Compact Mobile Header) */}
+            <div className="md:col-span-5 bg-[#0B0F19] text-white p-5 sm:p-6 md:p-8 flex flex-col justify-between relative overflow-hidden">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(circle at 18% 18%, rgba(225, 29, 72, 0.45), transparent 55%), radial-gradient(circle at 85% 88%, rgba(148, 163, 184, 0.2), transparent 50%)',
+                }}
+              />
 
-          {infoMsg && (
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{infoMsg}</span>
-            </div>
-          )}
-
-          {!firebaseUser ? (
-            <>
-              {/* 1-Click Google Login */}
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-lg flex items-center justify-center gap-3 transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span className="w-5 h-5 rounded-full bg-white text-slate-900 font-black text-[11px] flex items-center justify-center">
-                    G
+              <div className="relative z-10 space-y-4 md:space-y-6 pr-8 md:pr-0">
+                {/* Brand Lockup */}
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 flex items-center justify-center text-white font-black text-sm tracking-tight shadow-md shadow-rose-900/40">
+                    OF
+                  </div>
+                  <span className="text-base font-extrabold tracking-tight text-white">
+                    OFFER<span className="text-rose-400">FLOW</span>
                   </span>
-                )}
-                <span>{t('Continue with Google', 'Google দিয়ে লগইন করুন')}</span>
-              </button>
+                </div>
 
-              <div className="relative flex items-center py-1">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="shrink mx-3 text-[11px] font-bold uppercase text-slate-400">
-                  {t('or use email', 'অথবা ইমেইল দিয়ে')}
-                </span>
-                <div className="flex-grow border-t border-slate-200"></div>
+                <div className="space-y-1.5">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-white text-balance leading-snug">
+                    {mode === 'login'
+                      ? t('Welcome back to Offer Flow', 'অফার ফ্লো-তে স্বাগতম')
+                      : t('Join Offer Flow Membership', 'নতুন সদস্য হিসেবে যোগ দিন')}
+                  </h2>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {t(
+                      'Sign in once for instant address autofill, live parcel tracking, and seamless Cash on Delivery orders.',
+                      'একবার লগইন করলে দ্রুত ঠিকানা অটোফিল, লাইভ অর্ডার ট্র্যাকিং এবং সহজ ক্যাশ অন ডেলিভারি সুবিধা পাবেন।'
+                    )}
+                  </p>
+                </div>
               </div>
 
-              {/* Login / Sign Up Switch */}
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setError(null);
-                  }}
-                  className={`py-2 rounded-xl transition-all ${
-                    mode === 'login'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {t('Sign In', 'লগইন')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('register');
-                    setError(null);
-                  }}
-                  className={`py-2 rounded-xl transition-all ${
-                    mode === 'register'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {t('Sign Up', 'রেজিস্টার')}
-                </button>
-              </div>
-
-              <form onSubmit={handleEmailSubmit} className="space-y-3">
-                {mode === 'register' && (
+              {/* Clean Hairline Benefits List (Desktop) */}
+              <div className="relative z-10 hidden md:block pt-6 mt-6 border-t border-white/10 space-y-3.5 text-xs text-slate-300">
+                <div className="flex items-start gap-2.5">
+                  <Truck className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      {t('Full Name', 'আপনার পুরো নাম')}
+                    <p className="font-semibold text-white">
+                      {t('1-Tap Express Checkout', '১-ক্লিকে দ্রুত অর্ডার')}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {t('Saved district, area & mobile number', 'সেভ করা ঠিকানা ও মোবাইল নম্বর')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Package className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {t('Real-Time Order Sync', 'লাইভ অর্ডার আপডেট')}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {t('Follow every step from confirmation to courier', 'কনফার্মেশন থেকে ডেলিভারি পর্যন্ত দেখুন')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {t('Protected Account Access', 'সুরক্ষিত অ্যাকাউন্ট')}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {t('Encrypted sign-in backed by Google Cloud', 'গুগল ক্লাউড সিকিউরিটি দ্বারা সুরক্ষিত')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Authentication Form Area */}
+            <div className="md:col-span-7 p-5 sm:p-6 md:p-8 flex flex-col justify-between space-y-5 max-h-[82vh] overflow-y-auto">
+              <div className="space-y-4">
+                <div className="space-y-1 pr-8">
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                    {mode === 'login'
+                      ? t('Sign in to your account', 'অ্যাকাউন্টে লগইন করুন')
+                      : t('Create your account', 'নতুন অ্যাকাউন্ট খুলুন')}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {mode === 'login'
+                      ? t('Choose Google or enter your email credentials.', 'গুগল অথবা ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।')
+                      : t('Takes less than 30 seconds to get started.', 'শুরু করতে ৩০ সেকেন্ডেরও কম সময় লাগবে।')}
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{error}</span>
+                  </div>
+                )}
+
+                {infoMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{infoMsg}</span>
+                  </div>
+                )}
+
+                {/* Official Google Sign-In Button */}
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="w-full min-h-[44px] py-2.5 px-4 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-3 transition-all disabled:opacity-50 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+                  ) : (
+                    <GoogleLogoSvg className="w-4 h-4 shrink-0" />
+                  )}
+                  <span>{t('Continue with Google', 'Google দিয়ে দ্রুত লগইন করুন')}</span>
+                </button>
+
+                <div className="relative flex items-center py-0.5">
+                  <div className="flex-grow border-t border-slate-200" />
+                  <span className="shrink mx-3 text-[11px] font-medium text-slate-400">
+                    {t('or continue with email', 'অথবা ইমেইল ব্যবহার করুন')}
+                  </span>
+                  <div className="flex-grow border-t border-slate-200" />
+                </div>
+
+                {/* Clean Segmented Tabs */}
+                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('login');
+                      setError(null);
+                    }}
+                    className={`min-h-[38px] py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                      mode === 'login'
+                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t('Sign In', 'লগইন')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('register');
+                      setError(null);
+                    }}
+                    className={`min-h-[38px] py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                      mode === 'register'
+                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {t('Create Account', 'নতুন অ্যাকাউন্ট')}
+                  </button>
+                </div>
+
+                <form onSubmit={handleEmailSubmit} className="space-y-3.5">
+                  {mode === 'register' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {t('Full Name', 'আপনার পুরো নাম')}
+                      </label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder={t('e.g. Tanvir Hossain', 'যেমন: তানভীর হোসেন')}
+                          className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {t('Email Address', 'ইমেইল অ্যাড্রেস')}
                     </label>
                     <div className="relative">
-                      <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
-                        type="text"
+                        type="email"
                         required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder={t('e.g. Tanvir Hossain', 'যেমন: তানভীর হোসেন')}
-                        className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@gmail.com"
+                        className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
                       />
                     </div>
                   </div>
-                )}
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {t('Email Address', 'ইমেইল অ্যাড্রেস')}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@gmail.com"
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700">
-                      {t('Password', 'পাসওয়ার্ড')}
-                    </label>
-                    {mode === 'login' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        {t('Password', 'পাসওয়ার্ড')}
+                      </label>
+                      {mode === 'login' && (
+                        <button
+                          type="button"
+                          onClick={handlePasswordReset}
+                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                        >
+                          {t('Forgot password?', 'পাসওয়ার্ড ভুলে গেছেন?')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('Minimum 6 characters', 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড')}
+                        className="w-full min-h-[44px] pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-slate-900 transition-colors"
+                      />
                       <button
                         type="button"
-                        onClick={handlePasswordReset}
-                        className="text-[11px] font-semibold text-rose-600 hover:underline"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {t('Forgot password?', 'পাসওয়ার্ড ভুলে গেছেন?')}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
-                    )}
+                    </div>
                   </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      minLength={6}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={t('Minimum 6 characters', 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড')}
-                      className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-rose-600/25 transition-all disabled:opacity-50"
-                >
-                  {loading
-                    ? t('Please wait...', 'অপেক্ষা করুন...')
-                    : mode === 'login'
-                    ? t('Login to My Account', 'লগইন করুন')
-                    : t('Create Customer Account', 'অ্যাকাউন্ট তৈরি করুন')}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full min-h-[44px] py-3 px-4 bg-slate-900 hover:bg-rose-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+                  >
+                    <span>
+                      {loading
+                        ? t('Signing you in...', 'অপেক্ষা করুন...')
+                        : mode === 'login'
+                        ? t('Sign In to Offer Flow', 'লগইন সম্পন্ন করুন')
+                        : t('Create Free Account', 'নতুন অ্যাকাউন্ট তৈরি করুন')}
+                    </span>
+                    {!loading && <ArrowRight className="w-3.5 h-3.5" />}
+                  </button>
+                </form>
+              </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span>{t('Store owner?', 'স্টোর অ্যাডমিন?')}</span>
+              {/* Clean Footer Bar */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span>{t('Store Administrator?', 'স্টোর অ্যাডমিন?')}</span>
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     onOpenAdminLogin();
                   }}
-                  className="inline-flex items-center gap-1 font-bold text-slate-700 hover:text-rose-600"
+                  className="inline-flex items-center gap-1.5 font-bold text-slate-700 hover:text-rose-600 transition-colors whitespace-nowrap"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
-                  <span>{t('Admin Portal Login', 'অ্যাডমিন পোর্টাল লগইন')}</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-rose-600" />
+                  <span>{t('Admin Portal Sign In', 'অ্যাডমিন পোর্টাল লগইন')}</span>
                 </button>
               </div>
-            </>
-          ) : (
-            /* Logged-In Customer Account Dashboard */
-            <div className="space-y-4">
+            </div>
+          </div>
+        ) : (
+          /* Signed-In Member Profile Suite */
+          <div>
+            {/* Dark Editorial Header */}
+            <div className="px-6 py-5 bg-[#0B0F19] text-white flex items-center gap-3.5 pr-14">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 text-white flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-white/15 font-black text-base">
+                {firebaseUser.photoURL ? (
+                  <img
+                    src={firebaseUser.photoURL}
+                    alt={firebaseUser.displayName || 'User'}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{displayInitial}</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white truncate">
+                  {userProfile?.displayName ||
+                    firebaseUser.displayName ||
+                    t('Member Account', 'মেম্বার অ্যাকাউন্ট')}
+                </h3>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-300 truncate">
+                  <span className="truncate">{firebaseUser.email}</span>
+                  {firebaseUser.emailVerified && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="text-emerald-400 font-semibold shrink-0">
+                        {t('Verified', 'ভেরিফায়েড')}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{error}</span>
+                </div>
+              )}
+
+              {infoMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{infoMsg}</span>
+                </div>
+              )}
+
               {/* Quick Navigation Cards */}
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     onNavigate('orders');
                   }}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/70 transition-colors text-left"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 transition-colors text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-rose-600" />
-                    <span className="text-xs font-bold text-slate-800">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Package className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">
                       {t('My Orders', 'আমার অর্ডার')}
                     </span>
                   </div>
-                  <span className="text-[11px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-extrabold tabular-nums text-slate-900">
                     {myOrderNumbers.length}
                   </span>
                 </button>
@@ -543,15 +707,15 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     onClose();
                     onNavigate('wishlist');
                   }}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/70 transition-colors text-left"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 transition-colors text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-rose-600" />
-                    <span className="text-xs font-bold text-slate-800">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Heart className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">
                       {t('Wishlist', 'উইশলিস্ট')}
                     </span>
                   </div>
-                  <span className="text-[11px] font-black bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-extrabold tabular-nums text-slate-900">
                     {wishlistCount}
                   </span>
                 </button>
@@ -564,7 +728,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     onClose();
                     onNavigate('admin');
                   }}
-                  className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full min-h-[42px] py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span>{t('Open Admin Dashboard', 'অ্যাডমিন ড্যাশবোর্ডে যান')}</span>
@@ -572,7 +736,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
               )}
 
               {!firebaseUser.emailVerified && (
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs space-y-2">
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
                   <p className="font-semibold">
                     {t(
                       'Verify your email to save your delivery address across devices.',
@@ -583,17 +747,17 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     <button
                       type="button"
                       onClick={handleResendVerification}
-                      className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold text-[11px]"
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition-colors"
                     >
-                      {t('Send Link', 'লিংক পাঠান')}
+                      {t('Send Verification Link', 'ভেরিফিকেশন লিংক পাঠান')}
                     </button>
                     <button
                       type="button"
                       onClick={handleRefreshVerification}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-800 font-bold text-[11px]"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-[11px] hover:bg-amber-100/50 transition-colors"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      <span>{t('I Verified', 'ভেরিফাই করেছি')}</span>
+                      <span>{t('Refresh Status', 'চেক করুন')}</span>
                     </button>
                   </div>
                 </div>
@@ -602,15 +766,15 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
               {/* Saved Delivery Info Form */}
               <form
                 onSubmit={handleSaveProfile}
-                className="space-y-3 pt-2 border-t border-slate-100"
+                className="space-y-3 pt-3 border-t border-slate-100"
               >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                   <MapPin className="w-3.5 h-3.5 text-rose-600" />
                   <span>{t('Saved Delivery Information', 'সেভ করা ডেলিভারি ঠিকানা')}</span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     {t('Full Name', 'পুরো নাম')}
                   </label>
                   <input
@@ -618,35 +782,35 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     required
                     value={profName}
                     onChange={(e) => setProfName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-rose-500"
+                    className="w-full min-h-[40px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-slate-900"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                       {t('Mobile Number', 'মোবাইল নম্বর')}
                     </label>
                     <div className="relative">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="tel"
                         value={profPhone}
                         onChange={(e) => setProfPhone(e.target.value.replace(/[^0-9]/g, ''))}
                         maxLength={11}
                         placeholder="017XXXXXXXX"
-                        className="w-full pl-8 pr-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-rose-500"
+                        className="w-full min-h-[40px] pl-8 pr-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:bg-white focus:outline-hidden focus:border-slate-900"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                       {t('District', 'জেলা')}
                     </label>
                     <select
                       value={profDistrict}
                       onChange={(e) => setProfDistrict(e.target.value)}
-                      className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-rose-500"
+                      className="w-full min-h-[40px] px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-slate-900"
                     >
                       {BD_DISTRICTS.map((d) => (
                         <option key={d} value={d}>
@@ -658,7 +822,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     {t('Area / Thana', 'এলাকা / থানা')}
                   </label>
                   <input
@@ -666,12 +830,12 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     value={profArea}
                     onChange={(e) => setProfArea(e.target.value)}
                     placeholder={t('e.g. Dhanmondi, Mirpur', 'যেমন: ধানমন্ডি, মিরপুর')}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-rose-500"
+                    className="w-full min-h-[40px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                     {t('Full Address', 'বিস্তারিত ঠিকানা')}
                   </label>
                   <textarea
@@ -679,14 +843,14 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                     value={profAddress}
                     onChange={(e) => setProfAddress(e.target.value)}
                     placeholder={t('House, Road, Block...', 'বাড়ি নং, রোড নং...')}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-rose-500"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-slate-900"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={savingProfile}
-                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  className="w-full min-h-[42px] py-2.5 bg-slate-900 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>
@@ -704,14 +868,14 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
                   showToast(t('Logged out successfully', 'সফলভাবে লগআউট হয়েছে'));
                   onClose();
                 }}
-                className="w-full py-2.5 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                className="w-full min-h-[42px] py-2.5 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>{t('Logout', 'লগআউট')}</span>
+                <span>{t('Sign Out', 'লগআউট')}</span>
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

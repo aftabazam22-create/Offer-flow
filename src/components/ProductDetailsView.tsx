@@ -424,14 +424,24 @@ export const ProductDetailsView: React.FC<ProductDetailsProps> = ({
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
               <h4 className="font-bold text-slate-900">{t('Delivery Information', 'ডেলিভারি সংক্রান্ত তথ্য')}</h4>
               <p>
-                • <strong>{t('Inside Dhaka:', 'ঢাকার ভিতরে:')}</strong> {formatPrice(settings?.deliveryChargeInsideDhaka ?? 60)} {t('(Takes 24 to 48 hours)', '(২৪ থেকে ৪৮ ঘণ্টা)')}
+                • <strong>{t('Inside Dhaka:', 'ঢাকার ভিতরে:')}</strong> {formatPrice(settings?.deliveryChargeInsideDhaka ?? 70)} {t('(Takes 24 to 48 hours)', '(২৪ থেকে ৪৮ ঘণ্টা)')}
               </p>
               <p>
                 • <strong>{t('Outside Dhaka (All 64 districts):', 'ঢাকার বাইরে (সকল জেলা):')}</strong> {formatPrice(settings?.deliveryChargeOutsideDhaka ?? 120)} {t('(Takes 2 to 4 working days)', '(২ থেকে ৪ কার্যদিবস)')}
               </p>
-              <p>
-                • <strong>{t('Free Delivery Threshold:', 'ফ্রি ডেলিভারি:')}</strong> {t('Free delivery on orders over', 'অর্ডার')} {formatPrice(settings?.freeDeliveryThreshold ?? 2500)}.
-              </p>
+              {settings?.freeDeliveryEnabled && (
+                <p>
+                  • <strong>{t('Free Delivery Threshold:', 'ফ্রি ডেলিভারি:')}</strong>{' '}
+                  {(settings?.freeDeliveryThreshold ?? 0) > 0 ? (
+                    <>
+                      {t('Free delivery on orders over', 'অর্ডার')} {formatPrice(settings.freeDeliveryThreshold)}
+                      {t('.', ' টাকার উপরে হলে ফ্রি ডেলিভারি।')}
+                    </>
+                  ) : (
+                    t('Free delivery available on all orders!', 'সকল অর্ডারে ফ্রি ডেলিভারি প্রযোজ্য!')
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-2">

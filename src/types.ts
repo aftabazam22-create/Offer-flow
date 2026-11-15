@@ -196,6 +196,7 @@ export interface SiteSettings {
   currencyCode: string;
   deliveryChargeInsideDhaka: number;
   deliveryChargeOutsideDhaka: number;
+  freeDeliveryEnabled: boolean;
   freeDeliveryThreshold: number;
   deliveryInformation: string;
   returnPolicy: string;

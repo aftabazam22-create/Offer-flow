@@ -131,16 +131,58 @@ export const AdminSettings: React.FC = () => {
 
       {/* Logistics & Delivery Rates */}
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-        <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <Truck className="w-4 h-4 text-emerald-600" />
-          <span>Bangladesh Delivery Rates & Free Shipping</span>
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Truck className="w-4 h-4 text-emerald-600" />
+            <span>Bangladesh Delivery Rates & Free Shipping</span>
+          </h2>
+
+          <label className="inline-flex items-center gap-2.5 cursor-pointer select-none px-3.5 py-2 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={Boolean(formData.freeDeliveryEnabled)}
+              onChange={async (e) => {
+                const enabled = e.target.checked;
+                const next = { ...formData, freeDeliveryEnabled: enabled };
+                setFormData(next);
+                try {
+                  await api.updateSettings(next);
+                  showToast(
+                    enabled
+                      ? 'Free Delivery option turned ON'
+                      : 'Free Delivery option turned OFF (Standard charges apply)'
+                  );
+                } catch {
+                  showToast('Failed to update Free Delivery setting');
+                }
+              }}
+              className="w-4 h-4 accent-emerald-600 rounded"
+            />
+            <span className="text-xs font-bold text-slate-800">Free Delivery Option</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                formData.freeDeliveryEnabled
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-200 text-slate-600'
+              }`}
+            >
+              {formData.freeDeliveryEnabled ? 'ON' : 'OFF'}
+            </span>
+          </label>
+        </div>
+
+        <p className="text-[11px] text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+          {formData.freeDeliveryEnabled
+            ? `Free delivery is currently ON for orders of ${formData.freeDeliveryThreshold || 0}৳ or more.`
+            : 'Free delivery is currently OFF. Customers will always pay standard Inside/Outside Dhaka delivery charges even on orders above ৳3,000.'}
+        </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div>
             <label className="block font-bold text-slate-700 mb-1">Delivery Inside Dhaka (৳)</label>
             <input
               type="number"
+              min={0}
               value={formData.deliveryChargeInsideDhaka}
               onChange={(e) =>
                 setFormData({ ...formData, deliveryChargeInsideDhaka: Number(e.target.value) })
@@ -155,6 +197,7 @@ export const AdminSettings: React.FC = () => {
             </label>
             <input
               type="number"
+              min={0}
               value={formData.deliveryChargeOutsideDhaka}
               onChange={(e) =>
                 setFormData({ ...formData, deliveryChargeOutsideDhaka: Number(e.target.value) })
@@ -163,17 +206,22 @@ export const AdminSettings: React.FC = () => {
             />
           </div>
 
-          <div>
+          <div className={formData.freeDeliveryEnabled ? '' : 'opacity-60'}>
             <label className="block font-bold text-slate-700 mb-1">
-              Free Delivery Threshold (৳)
+              Free Delivery Threshold (৳){' '}
+              {!formData.freeDeliveryEnabled && (
+                <span className="text-[10px] font-semibold text-slate-400">(OFF)</span>
+              )}
             </label>
             <input
               type="number"
+              min={0}
+              disabled={!formData.freeDeliveryEnabled}
               value={formData.freeDeliveryThreshold}
               onChange={(e) =>
                 setFormData({ ...formData, freeDeliveryThreshold: Number(e.target.value) })
               }
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-600"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-600 disabled:cursor-not-allowed"
             />
           </div>
         </div>

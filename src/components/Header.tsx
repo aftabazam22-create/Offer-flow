@@ -318,6 +318,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <img
                     src={firebaseUser.photoURL}
                     alt="User"
+                    referrerPolicy="no-referrer"
                     className="w-6 h-6 rounded-full object-cover border border-white"
                   />
                 ) : (
@@ -335,11 +336,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenUserLogin}
-                className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-900 hover:bg-rose-600 text-white text-[10px] sm:text-xs font-bold transition-colors shadow-xs shrink-0"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-[#0B0F19] hover:bg-rose-600 active:scale-[0.98] text-white text-[10px] sm:text-xs font-bold transition-all shadow-xs shrink-0 whitespace-nowrap"
                 title={t('Customer Login', 'লগইন')}
               >
                 <User className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span>{t('Login', 'লগইন')}</span>
+                <span>{t('Sign In', 'লগইন')}</span>
               </button>
             )}
           </div>

@@ -45,8 +45,11 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
   );
 
   const totalDiscount = couponDiscount;
-  const isFreeDelivery = settings?.freeDeliveryThreshold && subtotal >= settings.freeDeliveryThreshold;
-  const deliveryEst = isFreeDelivery ? 0 : (settings?.deliveryChargeInsideDhaka ?? 60);
+  const isFreeDelivery = Boolean(
+    settings?.freeDeliveryEnabled &&
+      subtotal >= (settings?.freeDeliveryThreshold ?? 0)
+  );
+  const deliveryEst = isFreeDelivery ? 0 : (settings?.deliveryChargeInsideDhaka ?? 70);
   const grandTotal = Math.max(0, subtotal - totalDiscount + deliveryEst);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {

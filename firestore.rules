@@ -248,12 +248,16 @@ service cloud.firestore {
           'websiteName', 'tagline', 'logoUrl', 'contactPhone', 'whatsappNumber',
           'facebookPage', 'tiktokLink', 'announcementBarText', 'announcementBarActive',
           'currencySymbol', 'currencyCode', 'deliveryChargeInsideDhaka',
-          'deliveryChargeOutsideDhaka', 'freeDeliveryThreshold', 'deliveryInformation',
+          'deliveryChargeOutsideDhaka', 'freeDeliveryEnabled', 'freeDeliveryThreshold', 'deliveryInformation',
           'returnPolicy', 'privacyPolicy', 'termsAndConditions', 'aboutUs',
           'footerCopyright', 'footerCredit',
           'isActive', 'title', 'titleBn', 'endTime', 'discountHighlight'
         ]) &&
         isValidId(data.id) &&
+        (!('freeDeliveryEnabled' in data) || data.freeDeliveryEnabled is bool) &&
+        (!('freeDeliveryThreshold' in data) || (data.freeDeliveryThreshold is number && data.freeDeliveryThreshold >= 0)) &&
+        (!('deliveryChargeInsideDhaka' in data) || (data.deliveryChargeInsideDhaka is number && data.deliveryChargeInsideDhaka >= 0)) &&
+        (!('deliveryChargeOutsideDhaka' in data) || (data.deliveryChargeOutsideDhaka is number && data.deliveryChargeOutsideDhaka >= 0)) &&
         data.updatedAt is timestamp;
     }
 

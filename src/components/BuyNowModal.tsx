@@ -167,10 +167,12 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
   const discount = Math.min(subtotal, couponDiscount);
   const deliveryCharge =
     district.toLowerCase() === 'dhaka'
-      ? settings?.deliveryChargeInsideDhaka ?? 60
+      ? settings?.deliveryChargeInsideDhaka ?? 70
       : settings?.deliveryChargeOutsideDhaka ?? 120;
-  const isFreeDelivery =
-    settings?.freeDeliveryThreshold && subtotal >= settings.freeDeliveryThreshold;
+  const isFreeDelivery = Boolean(
+    settings?.freeDeliveryEnabled &&
+      subtotal >= (settings?.freeDeliveryThreshold ?? 0)
+  );
   const finalDeliveryCharge = isFreeDelivery ? 0 : deliveryCharge;
   const grandTotal = Math.max(0, subtotal - discount + finalDeliveryCharge);
   const totalQty = orderItems.reduce((sum, i) => sum + i.quantity, 0);

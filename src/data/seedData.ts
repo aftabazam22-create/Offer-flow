@@ -453,8 +453,9 @@ export const SEED_SETTINGS: SiteSettings = {
   announcementBarActive: true,
   currencySymbol: '৳',
   currencyCode: 'BDT',
-  deliveryChargeInsideDhaka: 60,
+  deliveryChargeInsideDhaka: 70,
   deliveryChargeOutsideDhaka: 120,
+  freeDeliveryEnabled: false,
   freeDeliveryThreshold: 3000,
   deliveryInformation:
     'Inside Dhaka delivery within 24-48 hours. Outside Dhaka across all 64 districts within 2-4 working days via courier.',

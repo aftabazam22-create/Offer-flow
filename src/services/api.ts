@@ -1411,7 +1411,12 @@ export const api = {
     try {
       const snap = await getDoc(doc(db, 'site_config', 'settings'));
       if (!snap.exists()) return { ...SEED_SETTINGS };
-      return { ...SEED_SETTINGS, ...snap.data() } as SiteSettings;
+      const raw = snap.data();
+      return {
+        ...SEED_SETTINGS,
+        ...raw,
+        freeDeliveryEnabled: Boolean(raw.freeDeliveryEnabled),
+      } as SiteSettings;
     } catch (e) {
       handleFirestoreError(e, OperationType.GET, 'site_config/settings');
     }
@@ -1425,7 +1430,12 @@ export const api = {
           onData({ ...SEED_SETTINGS });
           return;
         }
-        onData({ ...SEED_SETTINGS, ...snap.data() } as SiteSettings);
+        const raw = snap.data();
+        onData({
+          ...SEED_SETTINGS,
+          ...raw,
+          freeDeliveryEnabled: Boolean(raw.freeDeliveryEnabled),
+        } as SiteSettings);
       },
       (err) => console.error('Settings snapshot error:', err)
     );
@@ -1433,7 +1443,11 @@ export const api = {
 
   async updateSettings(data: Partial<SiteSettings>): Promise<SiteSettings> {
     const ref = doc(db, 'site_config', 'settings');
-    const merged: SiteSettings = { ...SEED_SETTINGS, ...data };
+    const merged: SiteSettings = {
+      ...SEED_SETTINGS,
+      ...data,
+      freeDeliveryEnabled: Boolean(data.freeDeliveryEnabled),
+    };
     const payload = stripUndefined({
       id: 'settings',
       websiteName: merged.websiteName,
@@ -1449,6 +1463,7 @@ export const api = {
       currencyCode: merged.currencyCode,
       deliveryChargeInsideDhaka: Number(merged.deliveryChargeInsideDhaka),
       deliveryChargeOutsideDhaka: Number(merged.deliveryChargeOutsideDhaka),
+      freeDeliveryEnabled: Boolean(merged.freeDeliveryEnabled),
       freeDeliveryThreshold: Number(merged.freeDeliveryThreshold),
       deliveryInformation: merged.deliveryInformation,
       returnPolicy: merged.returnPolicy,
