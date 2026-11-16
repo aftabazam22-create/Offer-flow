@@ -36,6 +36,8 @@ import {
   BlogPost,
   Coupon,
   FlashSaleConfig,
+  OfferCampaign,
+  OfferCampaignTheme,
   SiteSettings,
   UserProfile,
 } from '../types.js';
@@ -255,6 +257,28 @@ function normalizeReview(raw: Record<string, unknown>, id: string): Review {
     image: (raw.image as string) || '',
     isApproved: raw.isApproved !== false,
     createdAt: toIsoString(raw.createdAt),
+  };
+}
+
+function normalizeOffer(raw: Record<string, unknown>, id: string): OfferCampaign {
+  const allowedThemes: OfferCampaignTheme[] = ['crimson', 'obsidian', 'emerald', 'amber', 'indigo'];
+  const rawTheme = raw.theme as OfferCampaignTheme;
+  const theme: OfferCampaignTheme = allowedThemes.includes(rawTheme) ? rawTheme : 'crimson';
+  return {
+    id: (raw.id as string) || id,
+    title: (raw.title as string) || 'Special Offer',
+    titleBn: (raw.titleBn as string) || '',
+    subtitle: (raw.subtitle as string) || '',
+    discountHighlight: (raw.discountHighlight as string) || 'LIMITED OFFER',
+    theme,
+    endTime: (raw.endTime as string) || new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+    isActive: raw.isActive !== false,
+    order: Number(raw.order ?? 1),
+    productIds: Array.isArray(raw.productIds)
+      ? (raw.productIds as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim().length > 0).slice(0, 100)
+      : [],
+    createdAt: toIsoString(raw.createdAt),
+    updatedAt: toIsoString(raw.updatedAt),
   };
 }
 
@@ -1367,6 +1391,103 @@ export const api = {
       return merged;
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, 'site_config/flash_sale');
+    }
+  },
+
+  // Custom Offer Campaigns (like Flash Sale, with selected products & timer)
+  async getOffers(): Promise<OfferCampaign[]> {
+    try {
+      const snap = await getDocs(collection(db, 'offers'));
+      return snap.docs
+        .map((d) => normalizeOffer(d.data(), d.id))
+        .sort((a, b) => a.order - b.order);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, 'offers');
+    }
+  },
+
+  subscribeOffers(onData: (offers: OfferCampaign[]) => void): Unsubscribe {
+    return onSnapshot(
+      collection(db, 'offers'),
+      (snap) => {
+        const list = snap.docs
+          .map((d) => normalizeOffer(d.data(), d.id))
+          .sort((a, b) => a.order - b.order);
+        onData(list);
+      },
+      (err) => console.error('Offers snapshot error:', err)
+    );
+  },
+
+  async createOffer(data: Partial<OfferCampaign>): Promise<OfferCampaign> {
+    const id = data.id && /^[a-zA-Z0-9_-]+$/.test(data.id) ? data.id : makeId('ofr');
+    const allowedThemes: OfferCampaignTheme[] = ['crimson', 'obsidian', 'emerald', 'amber', 'indigo'];
+    const theme: OfferCampaignTheme =
+      data.theme && allowedThemes.includes(data.theme) ? data.theme : 'crimson';
+    const productIds = Array.isArray(data.productIds)
+      ? Array.from(new Set(data.productIds.filter((pid) => typeof pid === 'string' && pid.trim()))).slice(0, 100)
+      : [];
+
+    const payload = stripUndefined({
+      id,
+      title: (data.title || 'Special Offer').trim().slice(0, 200),
+      titleBn: data.titleBn?.trim() ? data.titleBn.trim().slice(0, 200) : undefined,
+      subtitle: data.subtitle?.trim() ? data.subtitle.trim().slice(0, 400) : undefined,
+      discountHighlight: (data.discountHighlight || 'SPECIAL OFFER').trim().slice(0, 100),
+      theme,
+      endTime: (data.endTime || new Date(Date.now() + 72 * 3600 * 1000).toISOString()).slice(0, 60),
+      isActive: data.isActive !== false,
+      order: Number(data.order ?? 1),
+      productIds,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    try {
+      await setDoc(doc(db, 'offers', id), payload);
+      return normalizeOffer(payload, id);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `offers/${id}`);
+    }
+  },
+
+  async updateOffer(id: string, data: Partial<OfferCampaign>): Promise<OfferCampaign> {
+    const ref = doc(db, 'offers', id);
+    const allowedThemes: OfferCampaignTheme[] = ['crimson', 'obsidian', 'emerald', 'amber', 'indigo'];
+    const payload = stripUndefined({
+      title: data.title !== undefined ? data.title.trim().slice(0, 200) : undefined,
+      titleBn: data.titleBn !== undefined ? data.titleBn.trim().slice(0, 200) : undefined,
+      subtitle: data.subtitle !== undefined ? data.subtitle.trim().slice(0, 400) : undefined,
+      discountHighlight:
+        data.discountHighlight !== undefined
+          ? data.discountHighlight.trim().slice(0, 100)
+          : undefined,
+      theme: data.theme && allowedThemes.includes(data.theme) ? data.theme : undefined,
+      endTime: data.endTime !== undefined ? data.endTime.slice(0, 60) : undefined,
+      isActive: data.isActive !== undefined ? Boolean(data.isActive) : undefined,
+      order: data.order !== undefined ? Number(data.order) : undefined,
+      productIds:
+        data.productIds !== undefined
+          ? Array.from(new Set(data.productIds.filter((pid) => typeof pid === 'string' && pid.trim()))).slice(0, 100)
+          : undefined,
+      updatedAt: serverTimestamp(),
+    });
+
+    try {
+      await updateDoc(ref, payload);
+      const updated = await getDoc(ref);
+      return normalizeOffer(updated.data() || {}, id);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `offers/${id}`);
+    }
+  },
+
+  async deleteOffer(id: string): Promise<{ success: boolean }> {
+    try {
+      await deleteDoc(doc(db, 'offers', id));
+      return { success: true };
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `offers/${id}`);
     }
   },
 

@@ -246,6 +246,26 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "displayName", "createdAt", "updatedAt"]
+    },
+    "OfferCampaign": {
+      "title": "OfferCampaign",
+      "description": "Custom timed offer campaign with assigned products and countdown timer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "titleBn": { "type": "string", "maxLength": 200 },
+        "subtitle": { "type": "string", "maxLength": 400 },
+        "discountHighlight": { "type": "string", "maxLength": 100 },
+        "theme": { "type": "string", "enum": ["crimson", "obsidian", "emerald", "amber", "indigo"] },
+        "endTime": { "type": "string", "maxLength": 60 },
+        "isActive": { "type": "boolean" },
+        "order": { "type": "number" },
+        "productIds": { "type": "array", "description": "Product IDs included in this offer campaign (max 100)." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "theme", "endTime", "isActive", "order", "productIds", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -268,6 +288,10 @@
     "/banners/{bannerId}": {
       "schema": { "$ref": "#/entities/Banner" },
       "description": "Homepage and promo banners."
+    },
+    "/offers/{offerId}": {
+      "schema": { "$ref": "#/entities/OfferCampaign" },
+      "description": "Custom timed promotional offer campaigns with selected products."
     },
     "/advertisements/{adId}": {
       "schema": { "$ref": "#/entities/Advertisement" },

@@ -279,6 +279,28 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidOffer(data) {
+      return data.keys().hasAll(['id', 'title', 'theme', 'endTime', 'isActive', 'order', 'productIds', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'id', 'title', 'titleBn', 'subtitle', 'discountHighlight',
+          'theme', 'endTime', 'isActive', 'order', 'productIds',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        (!('titleBn' in data) || (data.titleBn is string && data.titleBn.size() <= 200)) &&
+        (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 400)) &&
+        (!('discountHighlight' in data) || (data.discountHighlight is string && data.discountHighlight.size() <= 100)) &&
+        data.theme in ['crimson', 'obsidian', 'emerald', 'amber', 'indigo'] &&
+        data.endTime is string && data.endTime.size() >= 1 && data.endTime.size() <= 60 &&
+        data.isActive is bool &&
+        data.order is number &&
+        data.productIds is list && data.productIds.size() <= 100 &&
+        (data.productIds.size() == 0 || data.productIds[0] is string) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     // 3. Collection Rules
     match /admins/{uid} {
       allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
@@ -330,6 +352,14 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming()) && incoming().id == bannerId && incoming().createdAt == request.time && incoming().updatedAt == request.time;
       allow update: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming()) && incoming().id == existing().id && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
       allow delete: if isAdmin() && isValidId(bannerId);
+    }
+
+    match /offers/{offerId} {
+      allow get: if isValidId(offerId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) && incoming().id == offerId && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) && incoming().id == existing().id && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(offerId);
     }
 
     match /advertisements/{adId} {

@@ -222,6 +222,11 @@ function MainContent() {
                     ? decodeURIComponent(viewParam.replace('search=', ''))
                     : undefined
                 }
+                initialOfferId={
+                  viewParam?.startsWith('offer=')
+                    ? decodeURIComponent(viewParam.replace('offer=', ''))
+                    : undefined
+                }
                 initialFlashSale={
                   currentView === 'flash-sale' || viewParam?.includes('isFlashSale=true')
                 }

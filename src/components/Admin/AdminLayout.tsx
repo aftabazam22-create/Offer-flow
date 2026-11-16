@@ -14,11 +14,13 @@ import {
   Tag,
   Database,
   ArrowLeft,
+  Flame,
 } from 'lucide-react';
 import { AdminDashboard } from './AdminDashboard.js';
 import { AdminProducts } from './AdminProducts.js';
 import { AdminOrders } from './AdminOrders.js';
 import { AdminBanners } from './AdminBanners.js';
+import { AdminOffers } from './AdminOffers.js';
 import { AdminCategories } from './AdminCategories.js';
 import { AdminBlogs } from './AdminBlogs.js';
 import { AdminCoupons } from './AdminCoupons.js';
@@ -88,6 +90,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBac
       badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
     },
     { id: 'categories', label: 'Departments & Categories', icon: Layers },
+    { id: 'offers', label: 'Offer Campaigns', icon: Flame },
     { id: 'banners', label: 'Banners & Flash Sale', icon: Image },
     { id: 'coupons', label: 'Discount Coupons', icon: Tag },
     { id: 'blogs', label: 'Articles & Blogs', icon: BookOpen },
@@ -247,6 +250,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBac
           )}
           {activeTab === 'products' && <AdminProducts />}
           {activeTab === 'orders' && <AdminOrders />}
+          {activeTab === 'offers' && <AdminOffers />}
           {activeTab === 'banners' && <AdminBanners />}
           {activeTab === 'categories' && <AdminCategories />}
           {activeTab === 'coupons' && <AdminCoupons />}

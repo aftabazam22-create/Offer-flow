@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { SlidersHorizontal, Search, X, Check, ArrowUpDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { SlidersHorizontal, Search, X, Check, ArrowUpDown, Flame, Clock } from 'lucide-react';
 import { Product, Category } from '../types.js';
 import { ProductCard } from './ProductCard.js';
 import { useStore } from '../context/StoreContext.js';
@@ -10,6 +10,7 @@ interface ShopViewProps {
   initialCategory?: string;
   initialSearch?: string;
   initialTag?: string;
+  initialOfferId?: string;
   initialFlashSale?: boolean;
   onSelectProduct: (product: Product) => void;
   onNavigate: (view: string, param?: string) => void;
@@ -21,24 +22,42 @@ export const ShopView: React.FC<ShopViewProps> = ({
   initialCategory,
   initialSearch,
   initialTag,
+  initialOfferId,
   initialFlashSale,
   onSelectProduct,
   onNavigate,
 }) => {
-  const { t, formatPrice } = useStore();
+  const { t, formatPrice, offers, language } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || 'All');
   const [search, setSearch] = useState<string>(initialSearch || '');
+  const [selectedOfferId, setSelectedOfferId] = useState<string | undefined>(initialOfferId);
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [onlyFlashSale, setOnlyFlashSale] = useState<boolean>(initialFlashSale || false);
   const [priceRange, setPriceRange] = useState<number>(100000);
   const [sortBy, setSortBy] = useState<'featured' | 'newest' | 'price-asc' | 'price-desc' | 'rating'>('newest');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  const activeOffer = useMemo(
+    () => (selectedOfferId ? offers.find((o) => o.id === selectedOfferId) : undefined),
+    [offers, selectedOfferId]
+  );
+
+  useEffect(() => {
+    if (!activeOffer) return;
+    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activeOffer]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
+        // Offer Campaign
+        if (activeOffer && !activeOffer.productIds.includes(p.id)) {
+          return false;
+        }
         // Category
         if (selectedCategory !== 'All' && p.category !== selectedCategory) {
           return false;
@@ -71,24 +90,76 @@ export const ShopView: React.FC<ShopViewProps> = ({
         if (sortBy === 'newest') return +new Date(b.createdAt) - +new Date(a.createdAt);
         return 0;
       });
-  }, [products, selectedCategory, search, onlyInStock, onlyFlashSale, priceRange, sortBy, initialTag]);
+  }, [products, activeOffer, selectedCategory, search, onlyInStock, onlyFlashSale, priceRange, sortBy, initialTag]);
 
   const clearAllFilters = () => {
     setSelectedCategory('All');
     setSearch('');
+    setSelectedOfferId(undefined);
     setOnlyInStock(false);
     setOnlyFlashSale(false);
     setPriceRange(100000);
     setSortBy('newest');
   };
 
+  const offerRemainingMs = activeOffer ? Math.max(0, +new Date(activeOffer.endTime) - nowTick) : 0;
+  const offerDays = Math.floor(offerRemainingMs / (1000 * 60 * 60 * 24));
+  const offerHours = Math.floor((offerRemainingMs / (1000 * 60 * 60)) % 24);
+  const offerMins = Math.floor((offerRemainingMs / 1000 / 60) % 60);
+  const offerSecs = Math.floor((offerRemainingMs / 1000) % 60);
+
   return (
     <div className="space-y-6">
+      {/* Active Offer Campaign Header Banner */}
+      {activeOffer && (
+        <div className="bg-slate-900 text-white rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider">
+              <Flame className="w-3 h-3 fill-amber-300 text-amber-300" />
+              <span>{activeOffer.discountHighlight || t('SPECIAL OFFER', 'বিশেষ অফার')}</span>
+            </div>
+            <h2 className="text-lg sm:text-2xl font-black">
+              {language === 'bn' && activeOffer.titleBn ? activeOffer.titleBn : activeOffer.title}
+            </h2>
+            {activeOffer.subtitle && (
+              <p className="text-xs text-slate-300">{activeOffer.subtitle}</p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {offerRemainingMs > 0 && (
+              <div className="flex items-center gap-1.5 bg-white/10 px-3 py-2 rounded-xl border border-white/10 font-mono tabular-nums text-xs">
+                <Clock className="w-3.5 h-3.5 text-amber-300" />
+                <span className="font-bold">
+                  {offerDays > 0 ? `${offerDays}d : ` : ''}
+                  {String(offerHours).padStart(2, '0')}h : {String(offerMins).padStart(2, '0')}m :{' '}
+                  {String(offerSecs).padStart(2, '0')}s
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedOfferId(undefined)}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>{t('All Products', 'সব পণ্য দেখুন')}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-xs">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-            {selectedCategory === 'All' ? t('Explore All Products', 'সকল পণ্য অন্বেষণ করুন') : selectedCategory}
+            {activeOffer
+              ? language === 'bn' && activeOffer.titleBn
+                ? activeOffer.titleBn
+                : activeOffer.title
+              : selectedCategory === 'All'
+              ? t('Explore All Products', 'সকল পণ্য অন্বেষণ করুন')
+              : selectedCategory}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             {t('Showing', 'দেখানো হচ্ছে')} {filteredProducts.length} {t('products matching your criteria', 'টি পণ্য')}

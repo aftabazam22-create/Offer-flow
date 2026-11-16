@@ -182,6 +182,23 @@ export interface FlashSaleConfig {
   discountHighlight: string;
 }
 
+export type OfferCampaignTheme = 'crimson' | 'obsidian' | 'emerald' | 'amber' | 'indigo';
+
+export interface OfferCampaign {
+  id: string;
+  title: string;
+  titleBn?: string;
+  subtitle?: string;
+  discountHighlight: string;
+  theme: OfferCampaignTheme;
+  endTime: string;
+  isActive: boolean;
+  order: number;
+  productIds: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface SiteSettings {
   websiteName: string;
   tagline: string;

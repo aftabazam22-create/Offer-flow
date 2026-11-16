@@ -7,6 +7,7 @@ import {
   Advertisement,
   BlogPost,
   FlashSaleConfig,
+  OfferCampaign,
   CartItem,
   SiteSettings,
   UserProfile,
@@ -53,6 +54,7 @@ interface StoreContextType {
   ads: Advertisement[];
   blogs: BlogPost[];
   flashSale: FlashSaleConfig;
+  offers: OfferCampaign[];
   storeLoading: boolean;
   isUsingSeedProducts: boolean;
   language: 'en' | 'bn';
@@ -132,6 +134,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [ads, setAds] = useState<Advertisement[]>(SEED_ADS);
   const [blogs, setBlogs] = useState<BlogPost[]>(SEED_BLOGS);
   const [flashSale, setFlashSale] = useState<FlashSaleConfig>(SEED_FLASH_SALE);
+  const [offers, setOffers] = useState<OfferCampaign[]>([]);
   const [storeLoading, setStoreLoading] = useState(true);
   const [isUsingSeedProducts, setIsUsingSeedProducts] = useState(false);
 
@@ -213,6 +216,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubFlashSale = api.subscribeFlashSale((fs) => {
       setFlashSale(fs);
     });
+    const unsubOffers = api.subscribeOffers((list) => {
+      setOffers(list);
+    });
     const unsubSettings = api.subscribeSettings((s) => {
       setSettings(s);
     });
@@ -227,6 +233,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubAds();
       unsubBlogs();
       unsubFlashSale();
+      unsubOffers();
       unsubSettings();
     };
   }, []);
@@ -458,6 +465,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ads,
         blogs,
         flashSale,
+        offers,
         storeLoading,
         isUsingSeedProducts,
         language,

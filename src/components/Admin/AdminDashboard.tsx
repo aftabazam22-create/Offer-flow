@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ExternalLink,
   Tag,
+  Flame,
 } from 'lucide-react';
 import { Order } from '../../types.js';
 import { useStore } from '../../context/StoreContext.js';
@@ -26,7 +27,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSelectTab,
   onNavigateStore,
 }) => {
-  const { products, categories, formatPrice } = useStore();
+  const { products, categories, offers, formatPrice } = useStore();
 
   const totalRevenue = orders
     .filter((o) => o.status !== 'cancelled')
@@ -121,11 +122,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Navigation Modules Shortcuts */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
         {[
           { id: 'products', label: 'Products', count: products.length, icon: Package },
           { id: 'orders', label: 'Orders', count: orders.length, icon: ShoppingCart },
           { id: 'categories', label: 'Categories', count: categories.length, icon: Layers },
+          { id: 'offers', label: 'Offer Campaigns', count: offers.length, icon: Flame },
           { id: 'banners', label: 'Banners & Flash', icon: Image },
           { id: 'coupons', label: 'Coupons', icon: Tag },
           { id: 'blogs', label: 'Blog Posts', icon: BookOpen },

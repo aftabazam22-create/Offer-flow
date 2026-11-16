@@ -199,27 +199,37 @@ export const AdminBanners: React.FC = () => {
               </label>
               <input
                 type="datetime-local"
-                value={
-                  flashSale.endTime
-                    ? new Date(flashSale.endTime).toISOString().slice(0, 16)
-                    : ''
-                }
-                onChange={(e) =>
-                  setFlashSale({
-                    ...flashSale,
-                    endTime: new Date(e.target.value).toISOString(),
-                  })
-                }
+                value={(() => {
+                  if (!flashSale.endTime) return '';
+                  const d = new Date(flashSale.endTime);
+                  if (Number.isNaN(d.getTime())) return '';
+                  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .slice(0, 16);
+                })()}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const parsed = new Date(e.target.value);
+                  if (!Number.isNaN(parsed.getTime())) {
+                    setFlashSale({
+                      ...flashSale,
+                      endTime: parsed.toISOString(),
+                    });
+                  }
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
               />
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <p className="text-[11px] text-slate-500">
+              Want more timed offers with custom products? Open <strong className="text-slate-800">Offer Campaigns</strong> from the menu.
+            </p>
             <button
               type="submit"
               disabled={savingFlash}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50 self-end sm:self-auto"
             >
               {savingFlash ? 'Saving...' : 'Update Flash Sale'}
             </button>

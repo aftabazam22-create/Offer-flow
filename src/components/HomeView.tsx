@@ -14,6 +14,7 @@ import {
 import { Product, Category, Banner, FlashSaleConfig, BlogPost, Advertisement } from '../types.js';
 import { HeroBannerSection } from './HeroBannerSection.js';
 import { FlashSaleSection } from './FlashSaleSection.js';
+import { OfferCampaignsSection } from './OfferCampaignsSection.js';
 import { ProductCard } from './ProductCard.js';
 import { useStore } from '../context/StoreContext.js';
 
@@ -38,7 +39,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectProduct,
   onNavigate,
 }) => {
-  const { t, formatPrice } = useStore();
+  const { t, offers } = useStore();
 
   const featuredProducts = products.filter((p) => p.isFeatured).slice(0, 8);
   const newArrivals = products.filter((p) => p.isNewArrival).slice(0, 8);
@@ -107,6 +108,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           onNavigate={onNavigate}
         />
       </section>
+
+      {/* Custom Admin-Created Timed Offer Campaigns */}
+      <OfferCampaignsSection
+        offers={offers}
+        products={products}
+        onSelectProduct={onSelectProduct}
+        onNavigate={onNavigate}
+      />
 
       {/* Featured Products Grid */}
       <section className="space-y-3">
