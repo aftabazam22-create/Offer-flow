@@ -12,12 +12,18 @@ export const AdminCoupons: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const sanitizeNum = (raw: string): string => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits === '') return '';
+    return digits.replace(/^0+(?=\d)/, '');
+  };
+
   const [formData, setFormData] = useState({
     code: '',
     type: 'percentage' as Coupon['type'],
-    value: 10,
-    minOrderValue: 1000,
-    maxDiscount: 500,
+    value: '10',
+    minOrderValue: '1000',
+    maxDiscount: '500',
     usageLimit: 500,
     isActive: true,
   });
@@ -43,15 +49,20 @@ export const AdminCoupons: React.FC = () => {
     if (!formData.code.trim()) return;
     setSaving(true);
     try {
-      await api.createCoupon(formData);
+      await api.createCoupon({
+        ...formData,
+        value: Math.max(0, Number(formData.value) || 0),
+        minOrderValue: Math.max(0, Number(formData.minOrderValue) || 0),
+        maxDiscount: Math.max(0, Number(formData.maxDiscount) || 0),
+      });
       showToast('Coupon created in Firestore');
       setIsModalOpen(false);
       setFormData({
         code: '',
         type: 'percentage',
-        value: 10,
-        minOrderValue: 1000,
-        maxDiscount: 500,
+        value: '10',
+        minOrderValue: '1000',
+        maxDiscount: '500',
         usageLimit: 500,
         isActive: true,
       });
@@ -221,11 +232,12 @@ export const AdminCoupons: React.FC = () => {
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Discount Value *</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min={1}
+                    placeholder="10"
                     value={formData.value}
-                    onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, value: sanitizeNum(e.target.value) })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                   />
                 </div>
@@ -235,20 +247,22 @@ export const AdminCoupons: React.FC = () => {
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Min Order (৳)</label>
                   <input
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="1000"
                     value={formData.minOrderValue}
-                    onChange={(e) => setFormData({ ...formData, minOrderValue: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, minOrderValue: sanitizeNum(e.target.value) })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Max Discount (৳)</label>
                   <input
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="500"
                     value={formData.maxDiscount}
-                    onChange={(e) => setFormData({ ...formData, maxDiscount: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, maxDiscount: sanitizeNum(e.target.value) })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>

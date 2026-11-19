@@ -1089,6 +1089,25 @@ export const api = {
     }
   },
 
+  async deleteOrder(id: string): Promise<{ success: boolean }> {
+    const orderRef = doc(db, 'orders', id);
+    try {
+      const snap = await getDoc(orderRef);
+      const batch = writeBatch(db);
+      batch.delete(orderRef);
+      if (snap.exists()) {
+        const orderNumber = snap.data()?.orderNumber as string | undefined;
+        if (orderNumber && /^[a-zA-Z0-9_-]+$/.test(orderNumber)) {
+          batch.delete(doc(db, 'order_tracking', orderNumber));
+        }
+      }
+      await batch.commit();
+      return { success: true };
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `orders/${id}`);
+    }
+  },
+
   async getCustomers(): Promise<Customer[]> {
     const orders = await this.getOrders();
     const map = new Map<string, Customer>();

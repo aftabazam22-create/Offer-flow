@@ -35,7 +35,7 @@ interface AdminLayoutProps {
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBack }) => {
-  const { adminUser, logoutAdmin, showToast } = useStore();
+  const { settings, adminUser, logoutAdmin, showToast } = useStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tabHistory, setTabHistory] = useState<string[]>(['dashboard']);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -120,11 +120,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBac
           </button>
 
           <div className="flex items-center gap-2 select-none">
-            <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center font-black text-sm">
-              OF
-            </div>
+            {settings?.logoUrl ? (
+              <img
+                src={settings.logoUrl}
+                alt={settings.websiteName || 'Offer Flow'}
+                className="w-8 h-8 rounded-lg object-cover bg-white border border-white/20 shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-rose-600 flex items-center justify-center font-black text-sm shrink-0">
+                OF
+              </div>
+            )}
             <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">
-              Offer Flow <span className="text-rose-500 font-semibold text-xs ml-1">Admin Portal</span>
+              {settings?.websiteName || 'Offer Flow'}{' '}
+              <span className="text-rose-500 font-semibold text-xs ml-1">Admin Portal</span>
             </span>
           </div>
         </div>

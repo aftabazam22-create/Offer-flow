@@ -95,11 +95,25 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Brand Info */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-600 to-red-600 flex items-center justify-center text-white font-black text-lg shadow-md">
-                OF
-              </div>
+              {settings?.logoUrl ? (
+                <img
+                  src={settings.logoUrl}
+                  alt={settings.websiteName || 'Offer Flow'}
+                  className="w-9 h-9 rounded-xl object-cover border border-slate-700 bg-white shadow-md shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-600 to-red-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
+                  OF
+                </div>
+              )}
               <span className="text-xl font-extrabold text-white tracking-tight">
-                OFFER<span className="text-rose-500">FLOW</span>
+                {!settings?.websiteName || settings.websiteName.toLowerCase() === 'offer flow' ? (
+                  <>
+                    OFFER<span className="text-rose-500">FLOW</span>
+                  </>
+                ) : (
+                  settings.websiteName
+                )}
               </span>
             </div>
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">

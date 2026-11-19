@@ -143,17 +143,31 @@ export const Header: React.FC<HeaderProps> = ({
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
 
-              {/* Offer Flow Logo */}
+              {/* Offer Flow / Custom Store Logo */}
               <div
                 onClick={() => onNavigate('home')}
                 className="cursor-pointer flex items-center gap-1.5 sm:gap-2.5 select-none min-w-0"
               >
-                <div className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-rose-600 to-red-600 flex items-center justify-center text-white font-black text-xs sm:text-sm md:text-lg shadow-sm shadow-rose-500/20 border border-rose-400/30 shrink-0">
-                  OF
-                </div>
+                {settings?.logoUrl ? (
+                  <img
+                    src={settings.logoUrl}
+                    alt={settings.websiteName || 'Offer Flow'}
+                    className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl object-cover shadow-xs border border-slate-200 bg-white shrink-0"
+                  />
+                ) : (
+                  <div className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-rose-600 to-red-600 flex items-center justify-center text-white font-black text-xs sm:text-sm md:text-lg shadow-sm shadow-rose-500/20 border border-rose-400/30 shrink-0">
+                    OF
+                  </div>
+                )}
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs sm:text-lg md:text-xl font-extrabold tracking-tight text-slate-900 leading-none truncate">
-                    OFFER<span className="text-rose-600">FLOW</span>
+                    {!settings?.websiteName || settings.websiteName.toLowerCase() === 'offer flow' ? (
+                      <>
+                        OFFER<span className="text-rose-600">FLOW</span>
+                      </>
+                    ) : (
+                      settings.websiteName
+                    )}
                   </span>
                   <span className="text-[9px] font-bold text-rose-600/90 tracking-widest uppercase mt-0.5 hidden sm:block truncate">
                     {settings?.tagline || 'BEST OFFERS, ENDLESS SAVINGS'}
@@ -603,12 +617,26 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative z-10 w-[85vw] max-w-xs h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
             {/* Drawer Header */}
             <div className="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-rose-600 flex items-center justify-center font-black text-xs">
-                  OF
-                </div>
-                <span className="font-extrabold text-sm tracking-tight">
-                  OFFER<span className="text-rose-400">FLOW</span>
+              <div className="flex items-center gap-2 min-w-0">
+                {settings?.logoUrl ? (
+                  <img
+                    src={settings.logoUrl}
+                    alt={settings.websiteName || 'Offer Flow'}
+                    className="w-7 h-7 rounded-lg object-cover bg-white border border-white/20 shrink-0"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-rose-600 flex items-center justify-center font-black text-xs shrink-0">
+                    OF
+                  </div>
+                )}
+                <span className="font-extrabold text-sm tracking-tight truncate">
+                  {!settings?.websiteName || settings.websiteName.toLowerCase() === 'offer flow' ? (
+                    <>
+                      OFFER<span className="text-rose-400">FLOW</span>
+                    </>
+                  ) : (
+                    settings.websiteName
+                  )}
                 </span>
               </div>
               <button

@@ -36,13 +36,19 @@ export const AdminProducts: React.FC = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const sanitizeNumberField = (raw: string): string => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits === '') return '';
+    return digits.replace(/^0+(?=\d)/, '');
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     nameBn: '',
     description: '',
-    price: 1500,
-    discountPrice: 1200,
-    stock: 25,
+    price: '1500',
+    discountPrice: '1200',
+    stock: '25',
     sku: '',
     category: 'Gadgets & Tech',
     brand: 'Offer Flow',
@@ -120,9 +126,9 @@ export const AdminProducts: React.FC = () => {
       name: '',
       nameBn: '',
       description: '',
-      price: 1500,
-      discountPrice: 1200,
-      stock: 25,
+      price: '',
+      discountPrice: '',
+      stock: '25',
       sku: `OF-${Math.floor(1000 + Math.random() * 9000)}`,
       category: categories[0]?.name || 'Gadgets & Tech',
       brand: 'Offer Flow',
@@ -148,9 +154,9 @@ export const AdminProducts: React.FC = () => {
       name: p.name,
       nameBn: p.nameBn || '',
       description: p.description,
-      price: p.price,
-      discountPrice: p.discountPrice,
-      stock: p.stock,
+      price: String(p.price ?? ''),
+      discountPrice: String(p.discountPrice ?? ''),
+      stock: String(p.stock ?? 0),
       sku: p.sku,
       category: p.category,
       brand: p.brand,
@@ -203,12 +209,18 @@ export const AdminProducts: React.FC = () => {
       }
     });
 
+    const parsedPrice = Math.max(0, Number(formData.price) || 0);
+    const parsedDiscount =
+      formData.discountPrice.trim() !== ''
+        ? Math.max(0, Number(formData.discountPrice) || 0)
+        : parsedPrice;
+
     const payload: Partial<Product> = {
       name: formData.name.trim(),
       nameBn: formData.nameBn.trim(),
       description: formData.description.trim(),
-      price: Number(formData.price) || 0,
-      discountPrice: Number(formData.discountPrice) || Number(formData.price) || 0,
+      price: parsedPrice,
+      discountPrice: parsedDiscount,
       stock: Math.max(0, Number(formData.stock) || 0),
       sku: formData.sku.trim(),
       category: formData.category,
@@ -631,11 +643,14 @@ export const AdminProducts: React.FC = () => {
                     Original Price (৳ BDT) *
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min={0}
+                    placeholder="e.g. 1500"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: sanitizeNumberField(e.target.value) })
+                    }
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                   />
                 </div>
@@ -645,12 +660,16 @@ export const AdminProducts: React.FC = () => {
                     Offer / Discount Price (৳ BDT) *
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min={0}
+                    placeholder="e.g. 1200"
                     value={formData.discountPrice}
                     onChange={(e) =>
-                      setFormData({ ...formData, discountPrice: Number(e.target.value) })
+                      setFormData({
+                        ...formData,
+                        discountPrice: sanitizeNumberField(e.target.value),
+                      })
                     }
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-600"
                   />
@@ -661,11 +680,14 @@ export const AdminProducts: React.FC = () => {
                     Inventory Stock Count *
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min={0}
+                    placeholder="e.g. 25"
                     value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: sanitizeNumberField(e.target.value) })
+                    }
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
