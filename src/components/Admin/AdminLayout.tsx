@@ -91,7 +91,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onNavigateStore, onBac
     },
     { id: 'categories', label: 'Departments & Categories', icon: Layers },
     { id: 'offers', label: 'Offer Campaigns', icon: Flame },
-    { id: 'banners', label: 'Banners & Flash Sale', icon: Image },
+    { id: 'banners', label: 'Banners & Promotions', icon: Image },
     { id: 'coupons', label: 'Discount Coupons', icon: Tag },
     { id: 'blogs', label: 'Articles & Blogs', icon: BookOpen },
     { id: 'settings', label: 'Store & DB Settings', icon: Settings },

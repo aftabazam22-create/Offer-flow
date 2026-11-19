@@ -74,6 +74,8 @@ interface StoreContextType {
   addMyOrderNumber: (orderNumber: string) => void;
   cartCount: number;
   wishlistCount: number;
+  cartCoupon: { code: string; discount: number } | null;
+  setCartCoupon: (coupon: { code: string; discount: number } | null) => void;
   addToCart: (product: Product, quantity?: number, selectedColor?: string) => void;
   removeFromCart: (productId: string, selectedColor?: string) => void;
   updateCartQuantity: (productId: string, quantity: number, selectedColor?: string) => void;
@@ -147,6 +149,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isBuyNowModalOpen, setIsBuyNowModalOpen] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<CheckoutPayload | null>(null);
+  const [cartCoupon, setCartCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const seededOnceRef = useRef(false);
@@ -406,6 +409,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearCart = () => {
     setCart([]);
+    setCartCoupon(null);
   };
 
   const toggleWishlist = (productId: string) => {
@@ -485,6 +489,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addMyOrderNumber,
         cartCount,
         wishlistCount,
+        cartCoupon,
+        setCartCoupon,
         addToCart,
         removeFromCart,
         updateCartQuantity,

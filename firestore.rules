@@ -55,7 +55,7 @@ service cloud.firestore {
         isValidId(data.id) &&
         data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
         (!('nameBn' in data) || (data.nameBn is string && data.nameBn.size() <= 200)) &&
-        data.images is list && data.images.size() >= 1 && data.images.size() <= 10 &&
+        data.images is list && data.images.size() >= 1 && data.images.size() <= 30 &&
         data.images[0] is string && data.images[0].size() <= 400000 &&
         (!('description' in data) || (data.description is string && data.description.size() <= 5000)) &&
         (!('shortDescription' in data) || (data.shortDescription is string && data.shortDescription.size() <= 500)) &&

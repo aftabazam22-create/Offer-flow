@@ -39,11 +39,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectProduct,
   onNavigate,
 }) => {
-  const { t, offers } = useStore();
+  const { t, offers, settings } = useStore();
 
   const featuredProducts = products.filter((p) => p.isFeatured).slice(0, 8);
   const newArrivals = products.filter((p) => p.isNewArrival).slice(0, 8);
-  const promoAd = ads.find((a) => a.isActive && a.showOnHomepage) || ads[0];
+  const activePromos = ads.filter((a) => a.isActive && a.showOnHomepage);
+  const waPhone = (settings?.whatsappNumber || '01745329020').replace(/[^0-9]/g, '');
+  const waHref = `https://wa.me/${waPhone.startsWith('88') ? waPhone : `88${waPhone}`}`;
+
+  const handlePromoAction = (targetUrl?: string) => {
+    if (!targetUrl) {
+      onNavigate('shop');
+      return;
+    }
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      window.location.href = targetUrl;
+      return;
+    }
+    if (targetUrl.startsWith('/shop')) {
+      const q = targetUrl.includes('?') ? targetUrl.split('?')[1] : undefined;
+      onNavigate('shop', q);
+    } else if (targetUrl.startsWith('/categories')) {
+      onNavigate('categories');
+    } else if (targetUrl.startsWith('/blog')) {
+      onNavigate('blog');
+    } else {
+      onNavigate('shop');
+    }
+  };
 
   return (
     <div className="space-y-6 sm:space-y-10">
@@ -145,46 +168,57 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* Mid Promotional Banner Card */}
-      {promoAd && (
-        <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white p-4 sm:p-8 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-2 max-w-xl text-center md:text-left">
-            <span className="inline-block px-2.5 py-0.5 bg-rose-600/80 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
-              Special Promotion
-            </span>
-            <h3 className="text-lg sm:text-2xl font-black text-white leading-tight">
-              {promoAd.title}
-            </h3>
-            <p className="text-xs text-slate-300">
-              {promoAd.subtitle || t('Upgrade your daily lifestyle with premium electronics & authentic Bangladesh craftsmanship.', 'সেরা কোয়ালিটি এবং সাশ্রয়ী মূল্যে আপনার পছন্দের পণ্য কিনুন।')}
-            </p>
-            <div className="pt-1 flex flex-wrap gap-2 justify-center md:justify-start">
-              <button
-                onClick={() => onNavigate('shop')}
-                className="px-4 py-2 bg-white text-slate-950 hover:bg-slate-100 text-[11px] sm:text-xs font-bold rounded-xl shadow-sm transition-colors"
-              >
-                {t('Shop The Collection', 'কালেকশন দেখুন')}
-              </button>
-              <a
-                href="https://wa.me/8801745329020"
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>{t('Order via WhatsApp', 'হোয়াটসঅ্যাপ অর্ডার')}</span>
-              </a>
-            </div>
-          </div>
+      {/* Mid Promotional Banner Cards (Special Promotions) */}
+      {activePromos.length > 0 && (
+        <div className="space-y-4">
+          {activePromos.map((promoAd) => (
+            <section
+              key={promoAd.id}
+              className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white p-4 sm:p-8 shadow-md flex flex-col md:flex-row items-center justify-between gap-4"
+            >
+              <div className="space-y-2 max-w-xl text-center md:text-left">
+                <span className="inline-block px-2.5 py-0.5 bg-rose-600/80 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                  Special Promotion
+                </span>
+                <h3 className="text-lg sm:text-2xl font-black text-white leading-tight">
+                  {promoAd.title}
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {promoAd.subtitle ||
+                    t(
+                      'Upgrade your daily lifestyle with premium electronics & authentic Bangladesh craftsmanship.',
+                      'সেরা কোয়ালিটি এবং সাশ্রয়ী মূল্যে আপনার পছন্দের পণ্য কিনুন।'
+                    )}
+                </p>
+                <div className="pt-1 flex flex-wrap gap-2 justify-center md:justify-start">
+                  <button
+                    onClick={() => handlePromoAction(promoAd.targetUrl)}
+                    className="px-4 py-2 bg-white text-slate-950 hover:bg-slate-100 text-[11px] sm:text-xs font-bold rounded-xl shadow-sm transition-colors"
+                  >
+                    {promoAd.buttonText || t('Shop The Collection', 'কালেকশন দেখুন')}
+                  </button>
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{t('Order via WhatsApp', 'হোয়াটসঅ্যাপ অর্ডার')}</span>
+                  </a>
+                </div>
+              </div>
 
-          <div className="w-36 sm:w-48 md:w-56 aspect-square rounded-2xl overflow-hidden shadow-xl border border-white/10 shrink-0">
-            <img
-              src={promoAd.image}
-              alt={promoAd.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </section>
+              <div className="w-36 sm:w-48 md:w-56 aspect-square rounded-2xl overflow-hidden shadow-xl border border-white/10 shrink-0">
+                <img
+                  src={promoAd.image}
+                  alt={promoAd.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       {/* New Arrivals Section */}

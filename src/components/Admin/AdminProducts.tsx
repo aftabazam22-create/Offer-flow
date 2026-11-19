@@ -18,7 +18,9 @@ import {
 import { Product } from '../../types.js';
 import { api } from '../../services/api.js';
 import { useStore } from '../../context/StoreContext.js';
-import { compressImageFile } from '../../utils/imageUtils.js';
+import { compressImageFile, fitImagesWithinBudget } from '../../utils/imageUtils.js';
+
+const MAX_PRODUCT_IMAGES = 30;
 
 export const AdminProducts: React.FC = () => {
   const { products, categories, storeLoading, formatPrice, showToast } = useStore();
@@ -34,6 +36,7 @@ export const AdminProducts: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sanitizeNumberField = (raw: string): string => {
@@ -66,30 +69,33 @@ export const AdminProducts: React.FC = () => {
     if (!files || files.length === 0) return;
     setIsUploadingImages(true);
     try {
+      const remainingSlots = Math.max(0, MAX_PRODUCT_IMAGES - formData.images.length);
       const validFiles = Array.from(files)
         .filter((f) => f.type.startsWith('image/'))
-        .slice(0, Math.max(0, 8 - formData.images.length));
+        .slice(0, remainingSlots);
 
       if (validFiles.length === 0) {
         showToast(
-          formData.images.length >= 8
-            ? 'Maximum 8 photos allowed per product'
+          formData.images.length >= MAX_PRODUCT_IMAGES
+            ? `Maximum ${MAX_PRODUCT_IMAGES} photos allowed per product`
             : 'Please select valid image files (JPG, PNG, WebP)'
         );
         return;
       }
 
-      // Compress cleanly to ~120-200KB per image so Firestore saves smoothly without lag
+      // Compress cleanly & adaptively fit within Firestore document budget so up to 30 photos work smoothly
       const processedImages = await Promise.all(
-        validFiles.map((f) => compressImageFile(f, 640, 0.76, 180000))
+        validFiles.map((f) => compressImageFile(f, 680, 0.76, 65000))
       );
       const filtered = processedImages.filter(Boolean);
+      const combined = [...formData.images, ...filtered].slice(0, MAX_PRODUCT_IMAGES);
+      const fitted = await fitImagesWithinBudget(combined, 860000);
 
       setFormData((prev) => ({
         ...prev,
-        images: [...prev.images, ...filtered].slice(0, 8),
+        images: fitted,
       }));
-      showToast(`${filtered.length} photo(s) compressed & attached!`);
+      showToast(`${filtered.length} photo(s) added! (${fitted.length}/${MAX_PRODUCT_IMAGES})`);
     } catch {
       showToast('Error processing images');
     } finally {
@@ -98,6 +104,21 @@ export const AdminProducts: React.FC = () => {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleAddImageUrl = () => {
+    const clean = imageUrlInput.trim();
+    if (!clean) return;
+    if (formData.images.length >= MAX_PRODUCT_IMAGES) {
+      showToast(`Maximum ${MAX_PRODUCT_IMAGES} photos allowed per product`);
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, clean].slice(0, MAX_PRODUCT_IMAGES),
+    }));
+    setImageUrlInput('');
+    showToast('Photo URL added');
   };
 
   const handleRemoveImage = (indexToRemove: number) => {
@@ -180,13 +201,17 @@ export const AdminProducts: React.FC = () => {
       return;
     }
 
-    const totalSize = formData.images.reduce((acc, s) => acc + s.length, 0);
-    if (totalSize > 850000) {
-      showToast('Too many large images attached. Please keep up to 4-6 photos.');
+    setSaving(true);
+    const fittedImages = await fitImagesWithinBudget(
+      formData.images.slice(0, MAX_PRODUCT_IMAGES),
+      860000
+    );
+    const totalSize = fittedImages.reduce((acc, s) => acc + s.length, 0);
+    if (totalSize > 950000) {
+      setSaving(false);
+      showToast('Combined image size is too large for one document. Try removing a few very large photos or using image URLs.');
       return;
     }
-
-    setSaving(true);
     const tags = formData.tagsText
       .split(',')
       .map((s) => s.trim())
@@ -225,7 +250,7 @@ export const AdminProducts: React.FC = () => {
       sku: formData.sku.trim(),
       category: formData.category,
       brand: formData.brand.trim() || 'Offer Flow',
-      images: formData.images,
+      images: fittedImages,
       tags,
       colors,
       specifications: specsList,
@@ -758,7 +783,7 @@ export const AdminProducts: React.FC = () => {
                     </p>
                   </div>
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                    {formData.images.length} / 8
+                    {formData.images.length} / {MAX_PRODUCT_IMAGES}
                   </span>
                 </div>
 
@@ -824,6 +849,30 @@ export const AdminProducts: React.FC = () => {
                   )}
                 </div>
 
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddImageUrl();
+                      }
+                    }}
+                    placeholder="Or paste direct image URL (https://...)"
+                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddImageUrl}
+                    disabled={!imageUrlInput.trim() || formData.images.length >= MAX_PRODUCT_IMAGES}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                  >
+                    Add URL
+                  </button>
+                </div>
+
                 {formData.images.length > 0 ? (
                   <div className="space-y-2 pt-2">
                     <p className="text-[11px] font-bold text-slate-600">
@@ -873,7 +922,7 @@ export const AdminProducts: React.FC = () => {
                         </div>
                       ))}
 
-                      {formData.images.length < 8 && (
+                      {formData.images.length < MAX_PRODUCT_IMAGES && (
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}

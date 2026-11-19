@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Trash2,
@@ -7,8 +7,6 @@ import {
   ShoppingCart,
   ArrowRight,
   Tag,
-  Phone,
-  Truck,
   CheckCircle2,
   AlertCircle,
   ShoppingBag
@@ -19,6 +17,8 @@ import { api } from '../services/api.js';
 export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
   const {
     cart,
+    cartCoupon,
+    setCartCoupon,
     isCartOpen,
     setIsCartOpen,
     removeFromCart,
@@ -32,19 +32,61 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
   } = useStore();
 
   const [couponInput, setCouponInput] = useState('');
-  const [couponDiscount, setCouponDiscount] = useState(0);
-  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
   const [couponMessage, setCouponMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-
-  if (!isCartOpen) return null;
 
   const subtotal = cart.reduce(
     (acc, item) => acc + item.product.discountPrice * item.quantity,
     0
   );
 
-  const totalDiscount = couponDiscount;
+  const appliedCouponCode = cartCoupon?.code || null;
+  const couponDiscount = cartCoupon?.discount || 0;
+
+  // Sync local input/message when shared cartCoupon changes (e.g. cleared in checkout)
+  useEffect(() => {
+    if (!cartCoupon) {
+      setCouponMessage((prev) => (prev && !prev.isError ? null : prev));
+    } else {
+      setCouponInput(cartCoupon.code);
+    }
+  }, [cartCoupon]);
+
+  // Clear or re-validate applied coupon when cart items/subtotal change
+  useEffect(() => {
+    if (cart.length === 0) {
+      if (cartCoupon) setCartCoupon(null);
+      setCouponInput('');
+      setCouponMessage(null);
+      return;
+    }
+
+    if (!cartCoupon?.code) return;
+    let cancelled = false;
+    api
+      .validateCoupon(cartCoupon.code, subtotal)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.valid) {
+          if (res.discount !== cartCoupon.discount) {
+            setCartCoupon({ code: cartCoupon.code, discount: res.discount });
+          }
+          setCouponMessage({ text: res.message, isError: false });
+        } else {
+          setCartCoupon(null);
+          setCouponMessage({ text: res.message, isError: true });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cart.length, subtotal, cartCoupon?.code]);
+
+  if (!isCartOpen) return null;
+
+  const totalDiscount = Math.min(subtotal, couponDiscount);
   const isFreeDelivery = Boolean(
     settings?.freeDeliveryEnabled &&
       subtotal >= (settings?.freeDeliveryThreshold ?? 0)
@@ -54,21 +96,21 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!couponInput.trim()) return;
+    const cleanCode = couponInput.trim().toUpperCase();
+    if (!cleanCode) return;
 
     setValidatingCoupon(true);
     setCouponMessage(null);
 
     try {
-      const res = await api.validateCoupon(couponInput.trim(), subtotal);
+      const res = await api.validateCoupon(cleanCode, subtotal);
       if (res.valid) {
-        setCouponDiscount(res.discount);
-        setAppliedCouponCode(couponInput.trim().toUpperCase());
+        setCartCoupon({ code: cleanCode, discount: res.discount });
+        setCouponInput(cleanCode);
         setCouponMessage({ text: res.message, isError: false });
         showToast(t('Coupon successfully applied!', 'কুপন কার্যকর হয়েছে!'));
       } else {
-        setCouponDiscount(0);
-        setAppliedCouponCode(null);
+        setCartCoupon(null);
         setCouponMessage({ text: res.message, isError: true });
       }
     } catch {
@@ -78,11 +120,27 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
     }
   };
 
+  const handleRemoveCoupon = () => {
+    setCartCoupon(null);
+    setCouponInput('');
+    setCouponMessage(null);
+    showToast(t('Coupon cancelled', 'কুপন বাতিল করা হয়েছে'));
+  };
+
+  const handleClearCart = () => {
+    clearCart();
+    setCouponInput('');
+    setCouponMessage(null);
+  };
+
   const handleCheckoutEntireCart = () => {
     if (cart.length === 0) return;
     setIsCartOpen(false);
     openCartCheckout(cart, appliedCouponCode || undefined, totalDiscount);
   };
+
+  const inputMatchesApplied =
+    Boolean(appliedCouponCode) && couponInput.trim().toUpperCase() === appliedCouponCode;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
@@ -216,16 +274,48 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value)}
                   placeholder={t('Coupon code (e.g. OFFERFLOW10)', 'কুপন কোড (যেমন: OFFERFLOW10)')}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs uppercase text-slate-800 focus:outline-hidden focus:border-rose-500"
+                  className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs uppercase text-slate-800 focus:outline-hidden focus:border-rose-500"
                 />
+                {(couponInput || appliedCouponCode) && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    title={t('Cancel Coupon', 'কুপন বাতিল করুন')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-              <button
-                type="submit"
-                disabled={validatingCoupon}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 disabled:opacity-50"
-              >
-                {validatingCoupon ? '...' : t('Apply', 'প্রয়োগ')}
-              </button>
+
+              {inputMatchesApplied ? (
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors shrink-0"
+                >
+                  {t('Cancel', 'বাতিল')}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="submit"
+                    disabled={validatingCoupon || !couponInput.trim()}
+                    className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 disabled:opacity-50 shrink-0"
+                  >
+                    {validatingCoupon ? '...' : t('Apply', 'প্রয়োগ')}
+                  </button>
+                  {appliedCouponCode && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors shrink-0"
+                    >
+                      {t('Cancel', 'বাতিল')}
+                    </button>
+                  )}
+                </>
+              )}
             </form>
 
             {couponMessage && (
@@ -235,9 +325,9 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                 }`}
               >
                 {couponMessage.isError ? (
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 )}
                 <span>{couponMessage.text}</span>
               </div>
@@ -249,10 +339,24 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                 <span>{t('Subtotal', 'সাবটোটাল')}:</span>
                 <span className="font-semibold text-slate-800">{formatPrice(subtotal)}</span>
               </div>
-              {couponDiscount > 0 && (
-                <div className="flex justify-between text-emerald-600 font-medium">
-                  <span>{t('Coupon Discount', 'কুপন ডিসকাউন্ট')}:</span>
-                  <span>-{formatPrice(couponDiscount)}</span>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between items-center text-emerald-600 font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>
+                      {t('Coupon Discount', 'কুপন ডিসকাউন্ট')}
+                      {appliedCouponCode ? ` (${appliedCouponCode})` : ''}:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 text-[10px] font-bold transition-colors"
+                      title={t('Remove coupon', 'কুপন বাতিল করুন')}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      <span>{t('Cancel', 'বাতিল')}</span>
+                    </button>
+                  </span>
+                  <span>-{formatPrice(totalDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -284,7 +388,7 @@ export const CartDrawer: React.FC<{ onNavigate: (view: string) => void }> = ({ o
                   {t('Continue Shopping', 'আরও কেনাকাটা করুন')}
                 </button>
                 <button
-                  onClick={clearCart}
+                  onClick={handleClearCart}
                   className="text-slate-400 hover:text-red-600 transition-colors"
                 >
                   {t('Clear Cart', 'কার্ট খালি করুন')}

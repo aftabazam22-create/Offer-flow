@@ -62,6 +62,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
     setIsBuyNowModalOpen,
     checkoutPayload,
     clearCart,
+    setCartCoupon,
     addMyOrderNumber,
     firebaseUser,
     userProfile,
@@ -201,7 +202,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
   };
 
   const handleApplyCoupon = async () => {
-    const code = couponInput.trim();
+    const code = couponInput.trim().toUpperCase();
     if (!code) return;
     setValidatingCoupon(true);
     setCouponMessage(null);
@@ -209,12 +210,19 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
       const res = await api.validateCoupon(code, subtotal);
       if (res.valid) {
         setCouponDiscount(res.discount);
-        setAppliedCouponCode(code.toUpperCase());
+        setAppliedCouponCode(code);
+        setCouponInput(code);
+        if (checkoutPayload.fromCart) {
+          setCartCoupon({ code, discount: res.discount });
+        }
         setCouponMessage({ text: res.message, isError: false });
         showToast(t('Coupon applied successfully!', 'কুপন কোড প্রয়োগ হয়েছে!'));
       } else {
         setCouponDiscount(0);
         setAppliedCouponCode(null);
+        if (checkoutPayload.fromCart) {
+          setCartCoupon(null);
+        }
         setCouponMessage({ text: res.message, isError: true });
       }
     } catch {
@@ -232,6 +240,10 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
     setCouponDiscount(0);
     setCouponInput('');
     setCouponMessage(null);
+    if (checkoutPayload.fromCart) {
+      setCartCoupon(null);
+    }
+    showToast(t('Coupon cancelled', 'কুপন বাতিল করা হয়েছে'));
   };
 
   const handleDirectOrder = async (e: React.FormEvent) => {
@@ -718,36 +730,59 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
                   <span>{t('Have a Coupon Code?', 'কুপন কোড আছে? (অপশনাল)')}</span>
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleApplyCoupon();
-                      }
-                    }}
-                    placeholder={t('Enter coupon (e.g. OFFERFLOW10)', 'কুপন কোড লিখুন (যেমন: OFFERFLOW10)')}
-                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs uppercase text-slate-800 focus:outline-hidden focus:border-rose-500"
-                  />
-                  {appliedCouponCode ? (
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCoupon();
+                        }
+                      }}
+                      placeholder={t('Enter coupon (e.g. OFFERFLOW10)', 'কুপন কোড লিখুন (যেমন: OFFERFLOW10)')}
+                      className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs uppercase text-slate-800 focus:outline-hidden focus:border-rose-500"
+                    />
+                    {(couponInput || appliedCouponCode) && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        title={t('Cancel Coupon', 'কুপন বাতিল করুন')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {appliedCouponCode && couponInput.trim().toUpperCase() === appliedCouponCode ? (
                     <button
                       type="button"
                       onClick={handleRemoveCoupon}
-                      className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold"
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors shrink-0"
                     >
-                      {t('Remove', 'বাতিল')}
+                      {t('Cancel', 'বাতিল')}
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={validatingCoupon || !couponInput.trim()}
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50"
-                    >
-                      {validatingCoupon ? '...' : t('Apply', 'প্রয়োগ')}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={validatingCoupon || !couponInput.trim()}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold disabled:opacity-50 shrink-0"
+                      >
+                        {validatingCoupon ? '...' : t('Apply', 'প্রয়োগ')}
+                      </button>
+                      {appliedCouponCode && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors shrink-0"
+                        >
+                          {t('Cancel', 'বাতিল')}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
                 {couponMessage && (
@@ -797,10 +832,21 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ onNavigate }) => {
                 <span className="font-semibold text-slate-800">{formatPrice(subtotal)}</span>
               </div>
               {discount > 0 && (
-                <div className="flex justify-between text-emerald-600 font-medium">
-                  <span>
-                    {t('Coupon Discount', 'কুপন ডিসকাউন্ট')}{' '}
-                    {appliedCouponCode ? `(${appliedCouponCode})` : ''}:
+                <div className="flex justify-between items-center text-emerald-600 font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>
+                      {t('Coupon Discount', 'কুপন ডিসকাউন্ট')}{' '}
+                      {appliedCouponCode ? `(${appliedCouponCode})` : ''}:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 text-[10px] font-bold transition-colors"
+                      title={t('Cancel coupon', 'কুপন বাতিল করুন')}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      <span>{t('Cancel', 'বাতিল')}</span>
+                    </button>
                   </span>
                   <span>-{formatPrice(discount)}</span>
                 </div>

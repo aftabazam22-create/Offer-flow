@@ -521,7 +521,7 @@ export const api = {
       id,
       name: (data.name || 'Untitled Product').trim().slice(0, 200),
       nameBn: (data.nameBn || '').trim().slice(0, 200),
-      images: Array.isArray(data.images) && data.images.length > 0 ? data.images.slice(0, 10) : [],
+      images: Array.isArray(data.images) && data.images.length > 0 ? data.images.slice(0, 30) : [],
       description: (data.description || '').trim().slice(0, 5000),
       shortDescription: (data.shortDescription || data.description || '').trim().slice(0, 500),
       price,
@@ -572,7 +572,7 @@ export const api = {
     const payload = stripUndefined({
       name: data.name !== undefined ? data.name.trim().slice(0, 200) : undefined,
       nameBn: data.nameBn !== undefined ? data.nameBn.trim().slice(0, 200) : undefined,
-      images: data.images !== undefined ? data.images.slice(0, 10) : undefined,
+      images: data.images !== undefined ? data.images.slice(0, 30) : undefined,
       description: data.description !== undefined ? data.description.trim().slice(0, 5000) : undefined,
       shortDescription:
         data.shortDescription !== undefined ? data.shortDescription.trim().slice(0, 500) : undefined,
@@ -840,11 +840,15 @@ export const api = {
     }
   },
 
-  // Advertisements
+  // Advertisements (Special Promotions)
   async getAdvertisements(): Promise<Advertisement[]> {
     try {
       const snap = await getDocs(collection(db, 'advertisements'));
-      if (snap.empty) return [...SEED_ADS];
+      if (snap.empty) {
+        const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
+        if (!settingsSnap.exists()) return [...SEED_ADS];
+        return [];
+      }
       return snap.docs.map((d) => normalizeAd(d.data(), d.id));
     } catch (e) {
       handleFirestoreError(e, OperationType.LIST, 'advertisements');
@@ -854,15 +858,102 @@ export const api = {
   subscribeAdvertisements(onData: (ads: Advertisement[]) => void): Unsubscribe {
     return onSnapshot(
       collection(db, 'advertisements'),
-      (snap) => {
+      async (snap) => {
         if (snap.empty) {
-          onData([...SEED_ADS]);
+          try {
+            const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
+            if (!settingsSnap.exists()) {
+              onData([...SEED_ADS]);
+              return;
+            }
+          } catch {
+            // Fall through to empty list
+          }
+          onData([]);
           return;
         }
         onData(snap.docs.map((d) => normalizeAd(d.data(), d.id)));
       },
       (err) => console.error('Ads snapshot error:', err)
     );
+  },
+
+  async createAdvertisement(data: Partial<Advertisement>): Promise<Advertisement> {
+    const id = data.id && /^[a-zA-Z0-9_-]+$/.test(data.id) ? data.id : makeId('ad');
+    const payload = stripUndefined({
+      id,
+      title: (data.title || 'Special Promotion').trim().slice(0, 200),
+      subtitle: (data.subtitle || '').trim().slice(0, 500),
+      image:
+        (data.image || '').trim() ||
+        'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=85',
+      buttonText: (data.buttonText || 'Shop The Collection').trim().slice(0, 80),
+      targetUrl: (data.targetUrl || '/shop').trim().slice(0, 300),
+      placement: data.placement || 'promo_section',
+      showOnHomepage: data.showOnHomepage !== false,
+      isActive: data.isActive !== false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    try {
+      await setDoc(doc(db, 'advertisements', id), payload);
+      return normalizeAd(payload, id);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `advertisements/${id}`);
+    }
+  },
+
+  async updateAdvertisement(id: string, data: Partial<Advertisement>): Promise<Advertisement> {
+    const ref = doc(db, 'advertisements', id);
+    const payload = stripUndefined({
+      title: data.title !== undefined ? data.title.trim().slice(0, 200) : undefined,
+      subtitle: data.subtitle !== undefined ? data.subtitle.trim().slice(0, 500) : undefined,
+      image: data.image !== undefined ? data.image.trim() : undefined,
+      buttonText: data.buttonText !== undefined ? data.buttonText.trim().slice(0, 80) : undefined,
+      targetUrl: data.targetUrl !== undefined ? data.targetUrl.trim().slice(0, 300) : undefined,
+      placement: data.placement,
+      showOnHomepage: data.showOnHomepage,
+      isActive: data.isActive,
+      updatedAt: serverTimestamp(),
+    });
+
+    try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const seedItem = SEED_ADS.find((a) => a.id === id);
+        return await this.createAdvertisement({ ...seedItem, ...data, id });
+      }
+      await updateDoc(ref, payload);
+      const updated = await getDoc(ref);
+      return normalizeAd(updated.data() || {}, id);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `advertisements/${id}`);
+    }
+  },
+
+  async deleteAdvertisement(id: string): Promise<{ success: boolean }> {
+    try {
+      await deleteDoc(doc(db, 'advertisements', id));
+      const remaining = await getDocs(collection(db, 'advertisements'));
+      if (remaining.empty) {
+        const settingsRef = doc(db, 'site_config', 'settings');
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists()) {
+          await setDoc(
+            settingsRef,
+            stripUndefined({
+              id: 'settings',
+              ...SEED_SETTINGS,
+              updatedAt: serverTimestamp(),
+            })
+          );
+        }
+      }
+      return { success: true };
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `advertisements/${id}`);
+    }
   },
 
   // Orders & Customer Tracking
@@ -1244,11 +1335,44 @@ export const api = {
   async getCoupons(): Promise<Coupon[]> {
     try {
       const snap = await getDocs(collection(db, 'coupons'));
-      if (snap.empty) return [...SEED_COUPONS];
+      if (snap.empty) {
+        const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
+        if (!settingsSnap.exists()) return [...SEED_COUPONS];
+        return [];
+      }
       return snap.docs.map((d) => normalizeCoupon(d.data(), d.id));
     } catch (e) {
       handleFirestoreError(e, OperationType.LIST, 'coupons');
     }
+  },
+
+  subscribeCoupons(
+    onData: (coupons: Coupon[]) => void,
+    onError?: (err: unknown) => void
+  ): Unsubscribe {
+    return onSnapshot(
+      collection(db, 'coupons'),
+      async (snap) => {
+        if (snap.empty) {
+          try {
+            const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
+            if (!settingsSnap.exists()) {
+              onData([...SEED_COUPONS]);
+              return;
+            }
+          } catch {
+            // Fall through to empty list if settings check fails
+          }
+          onData([]);
+          return;
+        }
+        onData(snap.docs.map((d) => normalizeCoupon(d.data(), d.id)));
+      },
+      (err) => {
+        console.error('Coupons snapshot error:', err);
+        onError?.(err);
+      }
+    );
   },
 
   async validateCoupon(
@@ -1292,7 +1416,7 @@ export const api = {
   },
 
   async createCoupon(data: Partial<Coupon>): Promise<Coupon> {
-    const id = (data.id && /^[a-zA-Z0-9_-]+$/.test(data.id)) ? data.id : makeId('cpn');
+    const id = data.id && /^[a-zA-Z0-9_-]+$/.test(data.id) ? data.id : makeId('cpn');
     const payload = stripUndefined({
       id,
       code: (data.code || 'OFFER10').trim().toUpperCase().slice(0, 50),
@@ -1334,6 +1458,11 @@ export const api = {
     });
 
     try {
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const seedItem = SEED_COUPONS.find((c) => c.id === id);
+        return await this.createCoupon({ ...seedItem, ...data, id });
+      }
       await updateDoc(ref, payload);
       const updated = await getDoc(ref);
       return normalizeCoupon(updated.data() || {}, id);
@@ -1345,6 +1474,21 @@ export const api = {
   async deleteCoupon(id: string): Promise<{ success: boolean }> {
     try {
       await deleteDoc(doc(db, 'coupons', id));
+      const remaining = await getDocs(collection(db, 'coupons'));
+      if (remaining.empty) {
+        const settingsRef = doc(db, 'site_config', 'settings');
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists()) {
+          await setDoc(
+            settingsRef,
+            stripUndefined({
+              id: 'settings',
+              ...SEED_SETTINGS,
+              updatedAt: serverTimestamp(),
+            })
+          );
+        }
+      }
       return { success: true };
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `coupons/${id}`);
@@ -1650,6 +1794,9 @@ export const api = {
     };
 
     try {
+      const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
+      const alreadyInitialized = settingsSnap.exists();
+
       await checkAndSeedCollection('categories', SEED_CATEGORIES, (c) =>
         stripUndefined({
           ...c,
@@ -1671,13 +1818,15 @@ export const api = {
           updatedAt: serverTimestamp(),
         })
       );
-      await checkAndSeedCollection('advertisements', SEED_ADS, (a) =>
-        stripUndefined({
-          ...a,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      );
+      if (!alreadyInitialized || forceSyncMissing) {
+        await checkAndSeedCollection('advertisements', SEED_ADS, (a) =>
+          stripUndefined({
+            ...a,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+      }
       await checkAndSeedCollection('blogs', SEED_BLOGS, (b) =>
         stripUndefined({
           ...b,
@@ -1685,15 +1834,16 @@ export const api = {
           updatedAt: serverTimestamp(),
         })
       );
-      await checkAndSeedCollection('coupons', SEED_COUPONS, (c) =>
-        stripUndefined({
-          ...c,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      );
+      if (!alreadyInitialized || forceSyncMissing) {
+        await checkAndSeedCollection('coupons', SEED_COUPONS, (c) =>
+          stripUndefined({
+            ...c,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        );
+      }
 
-      const settingsSnap = await getDoc(doc(db, 'site_config', 'settings'));
       if (!settingsSnap.exists()) {
         batch.set(
           doc(db, 'site_config', 'settings'),

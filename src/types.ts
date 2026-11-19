@@ -172,6 +172,7 @@ export interface Coupon {
   timesUsed: number;
   isActive: boolean;
   expiresAt?: string;
+  productIds?: string[];
 }
 
 export interface FlashSaleConfig {

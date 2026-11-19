@@ -21,7 +21,7 @@
         "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 200 },
         "nameBn": { "type": "string", "maxLength": 200 },
-        "images": { "type": "array", "description": "Array of compressed image data URLs or HTTPS URLs (max 10)." },
+        "images": { "type": "array", "description": "Array of compressed image data URLs or HTTPS URLs (max 30)." },
         "description": { "type": "string", "maxLength": 5000 },
         "shortDescription": { "type": "string", "maxLength": 500 },
         "price": { "type": "number" },

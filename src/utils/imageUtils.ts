@@ -132,3 +132,37 @@ export const shrinkImageDataUrl = (
     img.src = src;
   });
 };
+
+/**
+ * Re-compresses an array of product image data URLs proportionally so the total payload
+ * stays safely under Firestore's 1 MiB document size limit even with 20-30 photos.
+ */
+export const fitImagesWithinBudget = async (
+  images: string[],
+  maxTotalBytes = 860000
+): Promise<string[]> => {
+  if (images.length === 0) return images;
+  const totalBytes = images.reduce((acc, s) => acc + s.length, 0);
+  if (totalBytes <= maxTotalBytes) return images;
+
+  const urlBytes = images
+    .filter((s) => !s.startsWith('data:image/'))
+    .reduce((acc, s) => acc + s.length, 0);
+  const dataImagesCount = images.filter((s) => s.startsWith('data:image/')).length;
+  if (dataImagesCount === 0) return images;
+
+  const remainingBudget = Math.max(100000, maxTotalBytes - urlBytes);
+  const perImageBudget = Math.max(18000, Math.floor(remainingBudget / dataImagesCount) - 1000);
+  const targetDimension = perImageBudget < 35000 ? 460 : 580;
+
+  return Promise.all(
+    images.map(async (img) => {
+      if (!img.startsWith('data:image/') || img.length <= perImageBudget) {
+        return img;
+      }
+      const shrunk = await shrinkImageDataUrl(img, targetDimension, perImageBudget);
+      return shrunk || img;
+    })
+  );
+};
+
